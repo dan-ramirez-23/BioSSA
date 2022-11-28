@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BioSSA</title>
+  <link rel="stylesheet" href="main.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <script defer src="src/index.js" charset="utf-8"></script>
+  <script defer src="src/birthdecay.js" charset="utf-8"></script>
+</head>
+<body>
+  <div class="header">
+    BioSSA
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <button class="dropdown-btn">Primers
+          <i class="fa fa-caret-down"></i>
+        </button>
+        <div class="dropdown-container">
+          <ul>
+            <li><a href="ssa_intro.html">Intro to SSA</a></li>
+            <li><a href="#">Link 2</a></li>
+            <li><a href="#">Link 3</a></li>
+          </ul>
+        </div>
+        <li><a href="birthdecay.html">Birth-Decay Process</a></li>
+        <li><a href="toggleswitch.html">Toggle Switch</a></li>
+        <li><a href="google.com">👌🏽 - link four</a></li>
+      </ul>
+    </div>
+    <div class="content">
+      <div class="rowpanel">
+        <div class="colpanel">
+          System Diagram
+
+        </div>
+        <div class="colpanel">
+          Species
+          <table class="speciestable">
+            <tr>
+              <th>Name</th>
+              <th></th>
+            </tr>
+            <tr>
+              <td contenteditable="true" class="species">Gene_off</td>
+              <td><button class="rm-species">Delete</button></td>
+            </tr>
+            <tr>
+              <td contenteditable="true" class="species">Gene_on</td>
+              <td><button class="rm-species">Delete</button></td>
+            </tr>
+            <tr>
+              <td contenteditable="true" class="species">mRNA</td>
+              <td><button class="rm-species">Delete</button></td>
+            </tr>
+
+          </table>
+          <button id="add-species">Add Species</button>
+          <button id="confirm-species">Confirm Species</button>
+        </div>
+        <div class="colpanel">
+          Reactions
+          <table class="rxntable">
+            <tr>
+              <td>
+                <select class="reactant-select">
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on">Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-reactant">+</button></td>
+              <td>&#x2192</td>
+              <td>
+                <select class="product-select">
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on">Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-product">+</button></td>
+            </tr>
+
+          </table>
+        </div>
+
+      </div>
+      <div class="rowpanel">
+        <div class="colpanel">Parameters</div>
+        <div class="colpanel">SSA Setup</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+  </div>
+</body>
+</html>

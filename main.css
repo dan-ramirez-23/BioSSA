@@ -123,5 +123,33 @@ a {
   padding: 8px;
   flex:1;
   text-align: center;
-  
+}
+
+.param-input-container {
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
+  padding-right:16px;
+  flex:1;
+}
+
+.param-all-input-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.param-input {
+  display: flex;
+  flex-direction: row;
+  padding:4px;
+  justify-content: space-between;
+}
+
+.param-input-field {
+  max-width: 100px;
+}
+
+h3 {
+  padding:0px;
+  margin:8px;
 }

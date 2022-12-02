@@ -36,11 +36,11 @@
     <div class="content">
       <div class="rowpanel">
         <div class="colpanel">
-          System Diagram
+          <h3>System Diagram</h3>
 
         </div>
         <div class="colpanel">
-          Species
+          <h3>Species</h3>
           <table class="speciestable">
             <tr>
               <th>Name</th>
@@ -64,12 +64,13 @@
           <button id="confirm-species">Confirm Species</button>
         </div>
         <div class="colpanel">
-          Reactions
+          <h3>Reactions</h3>
           <table class="rxntable">
             <tr>
               <td>
                 <select class="reactant-select">
-                  <option value="Gene_off">Gene_off</option>
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off" selected>Gene_off</option>
                   <option value="Gene_on">Gene_on</option>
                   <option value="mRNA">mRNA</option>
                 </select>
@@ -78,6 +79,79 @@
               <td>&#x2192</td>
               <td>
                 <select class="product-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on" selected>Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+              <td>
+                <select class="reactant-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on" selected>Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-reactant">+</button></td>
+              <td>&#x2192</td>
+              <td>
+                <select class="product-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off" selected>Gene_off</option>
+                  <option value="Gene_on">Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+              <td>
+                <select class="reactant-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on" selected>Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-reactant">+</button></td>
+              <td>&#x2192</td>
+              <td>
+                <select class="product-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on" selected>Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+              </td>
+              <td>+</td>
+              <td>
+                <select class="product-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on">Gene_on</option>
+                  <option value="mRNA" selected>mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+              <td>
+                <select class="reactant-select">
+                  <option value="None" selected>None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on">Gene_on</option>
+                  <option value="mRNA" selected>mRNA</option>
+                </select>
+              </td>
+              <td><button class="add-reactant">+</button></td>
+              <td>&#x2192</td>
+              <td>
+                <select class="product-select">
+                  <option value="None" selected>None</option>
                   <option value="Gene_off">Gene_off</option>
                   <option value="Gene_on">Gene_on</option>
                   <option value="mRNA">mRNA</option>
@@ -87,12 +161,74 @@
             </tr>
 
           </table>
+          <button id="add-rxn">Add Reaction</button>
+          <button id="confirm-rxn">Confirm Reactions</button>
         </div>
 
       </div>
       <div class="rowpanel">
-        <div class="colpanel">Parameters</div>
-        <div class="colpanel">SSA Setup</div>
+        <div class="colpanel">
+          <h3>Parameters</h3>
+          <div class="param-all-input-container">
+            <div class="param-input-container">
+              <h4>Constants</h4>
+              <div class="param-input">
+                <label for="time">Sim. time:</label>
+                <input type="number" name="time" class="param-input-field" value = "100">
+              </div>
+              <div class="param-input">
+                <label for="k_1">k_1:</label>
+                <input type="number" name="k_1" class="param-input-field" value = "0.2">
+              </div>
+              <div class="param-input">
+                <label for="k_2">k_2:</label>
+                <input type="number" name="k_2" class="param-input-field" value = "0.5">
+              </div>
+              <div class="param-input">
+                <label for="k_3">k_3:</label>
+                <input type="number" name="k_3" class="param-input-field" value = "10">
+              </div>
+              <div class="param-input">
+                <label for="k_4">k_4:</label>
+                <input type="number" name="k_4" class="param-input-field" value = "0.1">
+              </div>
+            </div>
+            <div class="param-input-container">
+              <h4>Ensemble Analysis</h4>
+              <div class="param-input">
+                <label for="ensemble">Multiple trajectories</label>
+                <input type="checkbox" name="ensemble" class="ensemble-checkbox">
+              </div>
+              <div class="param-input">
+                <label for="nmodels">Number of trajectories:</label>
+                <input type="number" name="nmodels" class="param-input-field" value = "100">
+              </div>
+              <div class="param-input">
+                <label for="variance">Parameter variance (%):</label>
+                <input type="number" name="variance" class="param-input-field" value = "30">
+              </div>
+            </div>
+          </div>
+          <div class="control-buttons-container">
+            <button id="params-load">Load</button>
+            <button id="sim-step">Step</button>
+            <button id="sim-toggle">Go/Stop</button>
+
+          </div>
+        
+        </div>
+          
+        <div class="colpanel">
+          <h3>SSA Setup</h3>
+          <div class="ssa-setup-panel">
+            <h4>Reaction Timing</h4>
+
+          </div>
+          <div class="ssa-setup-panel">
+            <h4>Reaction Selection</h4>
+
+          </div>
+        </div>
       </div>
     </div>
   </div>

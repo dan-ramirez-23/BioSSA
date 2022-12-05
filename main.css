@@ -153,3 +153,9 @@ h3 {
   padding:0px;
   margin:8px;
 }
+
+.ssa-setup-panel {
+  display:flex;
+  flex-direction: row;
+}
+

@@ -7,6 +7,9 @@
   <title>BioSSA</title>
   <link rel="stylesheet" href="main.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <script type="text/javascript" async
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js?config=TeX-MML-AM_CHTML">
+</script>
   <script defer src="src/index.js" charset="utf-8"></script>
   <script defer src="src/birthdecay.js" charset="utf-8"></script>
 </head>
@@ -44,18 +47,22 @@
           <table class="speciestable">
             <tr>
               <th>Name</th>
+              <th>Initial Condition</th>
               <th></th>
             </tr>
             <tr>
-              <td contenteditable="true" class="species">Gene_off</td>
+              <td><input type="text" class="species" value="Gene_off"></td>
+              <td><input type="number" class="species_ic" value="1"></td>
               <td><button class="rm-species">Delete</button></td>
             </tr>
             <tr>
-              <td contenteditable="true" class="species">Gene_on</td>
+              <td><input type="text" class="species" value="Gene_on"></td>
+              <td><input type="number" class="species_ic" value="0"></td>
               <td><button class="rm-species">Delete</button></td>
             </tr>
             <tr>
-              <td contenteditable="true" class="species">mRNA</td>
+              <td><input type="text" class="species" value="mRNA"></td>
+              <td><input type="number" class="species_ic" value="0"></td>
               <td><button class="rm-species">Delete</button></td>
             </tr>
 
@@ -67,6 +74,8 @@
           <h3>Reactions</h3>
           <table class="rxntable">
             <tr>
+              <td class="rxndelete"><button>Delete</button></td>
+              <td class="rxnnum">1.</td>
               <td>
                 <select class="reactant-select">
                   <option value="None" selected>None</option>
@@ -88,6 +97,8 @@
               <td><button class="add-product">+</button></td>
             </tr>
             <tr>
+              <td class="rxndelete"><button>Delete</button></td>
+              <td class="rxnnum">2.</td>
               <td>
                 <select class="reactant-select">
                   <option value="None" selected>None</option>
@@ -109,6 +120,8 @@
               <td><button class="add-product">+</button></td>
             </tr>
             <tr>
+              <td class="rxndelete"><button>Delete</button></td>
+              <td class="rxnnum">3.</td>
               <td>
                 <select class="reactant-select">
                   <option value="None" selected>None</option>
@@ -139,6 +152,8 @@
               <td><button class="add-product">+</button></td>
             </tr>
             <tr>
+              <td class="rxndelete"><button>Delete</button></td>
+              <td class="rxnnum">4.</td>
               <td>
                 <select class="reactant-select">
                   <option value="None" selected>None</option>
@@ -170,7 +185,7 @@
         <div class="colpanel">
           <h3>Parameters</h3>
           <div class="param-all-input-container">
-            <div class="param-input-container">
+            <div class="param-input-container" id="const-inputs">
               <h4>Constants</h4>
               <div class="param-input">
                 <label for="time">Sim. time:</label>
@@ -221,11 +236,52 @@
         <div class="colpanel">
           <h3>SSA Setup</h3>
           <div class="ssa-setup-panel">
-            <h4>Reaction Timing</h4>
+            <div id="icDisplay">
+              <h5>Initial State X</h5>
+              $$
+              \begin{bmatrix}
+              \text{Gene_off} = 1 \\
+              \text{Gene_on} = 0 \\ 
+              \text{mRNA} = 0 
+              \end{bmatrix}$$
+            </div>
+            <div id="propensity-display">
+              <h5>Propensities</h5>
+              <table id="propensity-table">
+                <tr>
+                  <th>Formal</th>
+                  <th>Actual</th>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td></td>
+                </tr>
+                  
+
+              </table>
+            </div>
+            
 
           </div>
           <div class="ssa-setup-panel">
-            <h4>Reaction Selection</h4>
+            <div id="prevStateDisplay">
+              <h5>Previous State</h5>
+              $$
+              \begin{bmatrix}
+              1 \\
+              0 \\ 
+              0 
+              \end{bmatrix}$$
+            </div>
+            <div id="stoichDisplay">
+              <h5>Stoichiometry</h5>
+              $$
+              \begin{bmatrix}
+              -1 & 1 & 0 & 0 \\ 
+              1 & -1 & 0 & 0 \\ 
+              0 & 0 & 1 & -1
+              \end{bmatrix}$$
+            </div>
 
           </div>
         </div>

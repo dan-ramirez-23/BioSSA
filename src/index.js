@@ -3,6 +3,7 @@ var dropdown = document.getElementsByClassName("dropdown-btn");
 var i;
 var speciesList = ["None"];
 var stoichMatrix = [];
+var icList = [];
 
 for (i = 0; i < dropdown.length; i++) {
   dropdown[i].addEventListener("click", function() {
@@ -45,7 +46,10 @@ function updateSpecies() {
     //update species list
     speciesList = ["None"];
     $(".speciestable tbody tr td input.species").each(function () {
-        speciesList.push($(this).val());
+        var speciesName = $(this).val();
+        speciesList.push(speciesName);
+        
+        $(this).attr("value", speciesName);
     });
 
     //update rxn table dropdowns
@@ -99,13 +103,13 @@ $(".add-product").click(function () {
 // add reactant & product buttons
 $("#add-rxn").click(function() {
     // find out how many rxns already exist
-    var rxnNum = $(".rxntable tr td.rxnnum").last().html();
+    var rxnNum = parseInt($(".rxntable tr td.rxnnum").last().html())+1;
 
     //var newRow = '<tr><td><select class="reactant-select"></select></td><td><button class="add-reactant">+</button></td><td>&#x2192</td><td><select class="product-select"></select></td><td><button class="add-product">+</button></td></tr>';
     //broken up below for readability
     var newRow = '<tr>';
     newRow +='<td class="rxndelete"><button>Delete</button></td>'; // rxn delete button
-    newRow +='<td class="rxnnum">'+(parseInt(rxnNum)+1)+'. </td>'; // rxn number
+    newRow +='<td class="rxnnum" id="'+rxnNum+'">'+rxnNum+'. </td>'; // rxn number
     newRow += '<td><select class="reactant-select"></select></td>'; // first reactant selector
     newRow +='<td><button class="add-reactant">+</button></td>'; // add reactant button 
     newRow +='<td>&#x2192</td>'; // arrow
@@ -134,7 +138,8 @@ $(".rxntable").on('click', '.rxndelete', function () {
 // confirm reactions
 $("#confirm-rxn").click(function () {
 
-    // first, remove all spurious reactions
+    // first, check species and remove all spurious reactions
+    updateSpecies();
     checkReactions();
 
     // get total number of reactions
@@ -163,7 +168,14 @@ $("#confirm-rxn").click(function () {
 
 
     // Also update stoichiometry matrix & display it
+    updateStoichMatrix();
+    //console.log(stoichMatrix);
+    var newDisplay = getStoichMatrixDisplay();
+    $("#stoichDisplay").empty();
+    $("#stoichDisplay").append(newDisplay);
 
+    // load MathJax again for it to process the update
+    MathJax.typeset();
 });
 
 
@@ -208,20 +220,22 @@ $("#params-load").click(function () {
     updateSpecies();
     // update initial state display
     displayIC();
+    // update propensity matrix
+    displayPropMatrix();
 });
 
 function displayIC() {
     var icMatrix = '<h5>Initial State X</h5> \n$$\\begin{bmatrix}\n';
+    icList = [];
     speciesList.forEach(species => {
         if(species != "None") {
             var speciesIC = $(".species[value="+species+"]").parent().parent().find(".species_ic").val();
-            console.log(species);
-            console.log(speciesIC);
             icMatrix += '\\text{'+species+'} = '+speciesIC+' \\\\\n';
+            icList.push(parseFloat(speciesIC));
         }
     });
     icMatrix += '\\end{bmatrix}$$';
-    console.log(icMatrix);
+    //console.log(icMatrix);
     $("#icDisplay").empty();
     $("#icDisplay").append(icMatrix);
 
@@ -231,29 +245,39 @@ function displayIC() {
 }
 
 
-// TODO: the implementation here is shoddy. a better way:
-// on confirmr eactions button, update Stoichiometry matrix as a global var and display it
-// also update "Previous state" in second panel of "SSA setup"
-
-
 // get formal & actual propensity function for one reaction
 function getRxnPropensity(rxnNum) {
-    // loop over reactants
-    var formalProp = 'k_'+rxnNum+'*';
-    var actualProp = '';
+    // allocate output vars
+    var formalProp = 'k_'+rxnNum;
+    
+    var k = $(".param-input-field[name="+formalProp+"]").val();
+    var actualProp = parseFloat(k);
+    formalProp += '*';
+    
     // get reactants for the rxn
     var reactants = [];
-    $(".rxntable tr td select.reactant-select").find(":selected").each(function() {
+    query='.rxntable tr td#rxnnum'+rxnNum;
+    console.log(query);
+    $(query).parent().find("select.reactant-select").find(":selected").each(function() {
         if($(this).val() != "None") {
+            console.log($(this).val());
             reactants.push($(this).val());
         }  
     });
 
-
+    // cat together formal propensity, while computing actual
     reactants.forEach(rct => {
-        var rctNum = speciesList.findIndex(rct)-1;
+        // get reactant index in species list
+        var rctNum = speciesList.findIndex(function(x) {
+            return x == rct;
+        })-1;
         formalProp += 'X['+rctNum+']';
+
+        // get reactant concentration
+        var rctCon = icList[rctNum];
+        actualProp *= rctCon;
     });
+
 
     return [formalProp, actualProp];
     
@@ -261,6 +285,92 @@ function getRxnPropensity(rxnNum) {
 
 
 function updateStoichMatrix() {
-    
+    // iterate over each reaction
+    $(".rxntable tr").each( function() {
+        var arrSize = speciesList.length-1
+        var inputs = new Array(arrSize); for (let i=0; i<arrSize; ++i) inputs[i] = 0;
+        var outputs = new Array(arrSize); for (let i=0; i<arrSize; ++i) outputs[i] = 0;
+
+        // update inputs vector: loop over reactants
+        $(this).find("td select.reactant-select").find(":selected").each(function() {
+            if($(this).val() != "None") {
+                var species = $(this).val();
+                var rctNum = speciesList.findIndex(function(x) {
+                    return x==species;
+                })-1;
+                inputs[rctNum] += 1;
+            }  
+        });
+
+        // update outputs vector
+        $(this).find("td select.product-select").find(":selected").each(function() {
+            if($(this).val() != "None") {
+                var species = $(this).val();
+                var rctNum = speciesList.findIndex(function(x) {
+                    return x == species;
+                })-1;
+                outputs[rctNum] += 1;
+            }  
+        });
+
+        // reaction vector is outputs - inputs
+        var rxnVector = outputs.map((n, i) => n - inputs[i]);
+        
+        // update reaction vector in global stoich matrix
+        var rxnNum = parseInt($(this).find("td.rxnnum").html());
+        stoichMatrix[rxnNum-1] = rxnVector;
+
+    });
 }
 
+
+function getStoichMatrixDisplay() {
+    var disp = '<h5>Stoichiometry</h5> \n$$\\begin{bmatrix}\n';;
+    var stoichMat_t = transpose(stoichMatrix);
+    stoichMat_t.forEach(rxn => {
+        rxn.forEach(cell => {
+            disp += ' '+cell+' & ';
+        })
+        disp += ' \\\\\n';
+    });
+    disp += '\\end{bmatrix}$$';
+    return disp;
+}
+
+// helper function from https://stackoverflow.com/a/46805290
+function transpose(matrix) {
+    return matrix[0].map((col, i) => matrix.map(row => row[i]));
+}
+
+
+
+function getPropMatrixDisplay() {
+    
+    // allocate output
+    var out = '';
+    out += '<h5>Propensities</h5>'; // section header
+    out += '<table id="propensity-table"><tr><th>Formal</th><th>Actual</th></tr>'; // open table, headers
+
+
+    // iterate over each reaction
+    $(".rxntable tr").each( function() {
+        // get rxn number
+        var rxnNum = parseInt($(this).find("td.rxnnum").html());
+        var rxnProps = getRxnPropensity(rxnNum);
+        console.log(rxnNum);
+
+        out += '<tr><td>' + rxnProps[0] + '</td>'; // open row, add formal propensity
+        out += '<td>' + rxnProps[1] + '</td></tr>'; // add actual propensity, close row
+
+    });
+    out += '</table>'; // close table
+    return out;
+
+}
+
+
+function displayPropMatrix() {
+    out = getPropMatrixDisplay();
+    $("#propensity-display").empty();
+    $("#propensity-display").append(out);
+}

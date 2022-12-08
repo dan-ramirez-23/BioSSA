@@ -4,6 +4,17 @@ var i;
 var speciesList = ["None"];
 var stoichMatrix = [];
 var icList = [];
+var currentConcList = [];
+var propList = [];
+var rxnCount;
+var formalPropList = [];
+
+
+//$.ajax({
+//   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
+//  dataType: "script"
+// });
+
 
 for (i = 0; i < dropdown.length; i++) {
   dropdown[i].addEventListener("click", function() {
@@ -81,7 +92,6 @@ $(".speciestable").on('click', '.rm-species', function () {
 // add one reactant to a reaction in the rxn table
 $(".add-reactant").click(function () {
     var newDropdown = '<td>+</td><td><select class="reactant-select"></select></td>';
-    //console.log($(this).parent().last());
     $(this).parent().last().before(newDropdown);
     updateSpecies();
 });
@@ -120,13 +130,6 @@ $("#add-rxn").click(function() {
     updateSpecies();
 });
 
-
-// delete reaction
-//$(".rxndelete").click(function() {
-//    console.log("test");
- //   console.log($(this).parent());
-    //$(this).parent().remove();
-//});
 
 
 $(".rxntable").on('click', '.rxndelete', function () {
@@ -169,7 +172,6 @@ $("#confirm-rxn").click(function () {
 
     // Also update stoichiometry matrix & display it
     updateStoichMatrix();
-    //console.log(stoichMatrix);
     var newDisplay = getStoichMatrixDisplay();
     $("#stoichDisplay").empty();
     $("#stoichDisplay").append(newDisplay);
@@ -218,10 +220,16 @@ function checkReactions() {
 $("#params-load").click(function () {
     // update species just in case
     updateSpecies();
+    // update stoichiometry matrix
+    updateStoichMatrix();
     // update initial state display
     displayIC();
     // update propensity matrix
+    updatePropList();
     displayPropMatrix();
+    // create/reset rxn_log, and run one step
+    setupRxnLog();
+    //simStep();
 });
 
 function displayIC() {
@@ -234,13 +242,15 @@ function displayIC() {
             icList.push(parseFloat(speciesIC));
         }
     });
+    currentConcList = [...icList];
     icMatrix += '\\end{bmatrix}$$';
-    //console.log(icMatrix);
     $("#icDisplay").empty();
     $("#icDisplay").append(icMatrix);
 
     // load MathJax again for it to process the update
     MathJax.typeset();
+
+
 
 }
 
@@ -257,10 +267,8 @@ function getRxnPropensity(rxnNum) {
     // get reactants for the rxn
     var reactants = [];
     query='.rxntable tr td#rxnnum'+rxnNum;
-    console.log(query);
     $(query).parent().find("select.reactant-select").find(":selected").each(function() {
         if($(this).val() != "None") {
-            console.log($(this).val());
             reactants.push($(this).val());
         }  
     });
@@ -274,7 +282,7 @@ function getRxnPropensity(rxnNum) {
         formalProp += 'X['+rctNum+']';
 
         // get reactant concentration
-        var rctCon = icList[rctNum];
+        var rctCon = parseFloat(currentConcList[rctNum]);
         actualProp *= rctCon;
     });
 
@@ -344,6 +352,23 @@ function transpose(matrix) {
 
 
 
+function updatePropList() {
+    formalPropList = [];
+    propList = [];
+    // iterate over each reaction
+    $(".rxntable tr").each( function() {
+        // get rxn number
+        var rxnNum = parseInt($(this).find("td.rxnnum").html());
+        var rxnProps = getRxnPropensity(rxnNum);
+
+        formalPropList.push(rxnProps[0]);
+        propList.push(rxnProps[1]);
+
+        
+    });
+
+}
+
 function getPropMatrixDisplay() {
     
     // allocate output
@@ -351,16 +376,15 @@ function getPropMatrixDisplay() {
     out += '<h5>Propensities</h5>'; // section header
     out += '<table id="propensity-table"><tr><th>Formal</th><th>Actual</th></tr>'; // open table, headers
 
-
     // iterate over each reaction
     $(".rxntable tr").each( function() {
         // get rxn number
         var rxnNum = parseInt($(this).find("td.rxnnum").html());
-        var rxnProps = getRxnPropensity(rxnNum);
-        console.log(rxnNum);
-
-        out += '<tr><td>' + rxnProps[0] + '</td>'; // open row, add formal propensity
-        out += '<td>' + rxnProps[1] + '</td></tr>'; // add actual propensity, close row
+        //var rxnProps = getRxnPropensity(rxnNum);
+        var rxnProps = propList[rxnNum-1].toFixed(2);
+        var rxnFormalProp = formalPropList[rxnNum-1];
+        out += '<tr><td>' + rxnFormalProp + '</td>'; // open row, add formal propensity
+        out += '<td>' + rxnProps + '</td></tr>'; // add actual propensity, close row
 
     });
     out += '</table>'; // close table
@@ -374,3 +398,232 @@ function displayPropMatrix() {
     $("#propensity-display").empty();
     $("#propensity-display").append(out);
 }
+
+
+// on step: update all displays for one reaction
+$("#sim-step").click(function() {
+    simStep();
+})
+
+
+function simStep() {
+
+    // obtain reaction time interval
+    
+    // generate a random number
+    var rand = Math.random();
+    var sum = propList.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+    var tau = -1*Math.log(rand) / sum;
+
+    // update waiting time plot display
+    displayWaitingUnif(rand);
+
+    // select a reaction
+    rand = Math.random();
+    var randRxn = rand*sum;
+
+    var rxn = 0;
+    var cumsum = 0;
+    for(let prop of propList) {
+        cumsum += parseFloat(prop);
+        if(cumsum >= randRxn) {
+            break;
+        }
+        rxn += 1;
+    }; 
+
+    // update selected reaction display
+
+    // compute new system state
+    var rxnVector = stoichMatrix[rxn];
+    currentConcList = [...currentConcList.map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
+
+
+    // update system state display
+    updatePrevStateDisplay();
+
+    // update propensity display
+    updatePropList();
+    
+    displayPropMatrix();
+
+}
+
+
+function updatePrevStateDisplay() {
+    var outMatrix = '<h5>Initial State X</h5> \n$$\\begin{bmatrix}\n';
+    speciesList.forEach((species, i) => {
+        if(species != "None") {
+            var speciesConc = currentConcList[i-1];
+            outMatrix += speciesConc+' \\\\\n';
+        }
+    });
+    outMatrix += '\\end{bmatrix}$$';
+    $("#prevStateDisplay").empty();
+    $("#prevStateDisplay").append(outMatrix);
+
+    // load MathJax again for it to process the update
+    MathJax.typeset();
+
+}
+
+
+function getRxnInterval() {
+    //pyodide.globals.speciesList = speciesList;
+    //pyodide.globals.propList = propList;
+    //console.log(pyodide.runPython(`
+    //    print propList
+    //`));
+
+    // generate a random number
+    //var rand = Math.random();
+    var sum = propList.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+    var tau = -1*Math.log(rand) / Math.sum;
+    return(tau);
+}
+
+
+
+function setupRxnLog() {
+    var h1 = ['t_prev','t_new','last_rxn','unif_samp','rxn_samp'];
+    h2 = h1.concat(speciesList.map((n) => n + '_conc')); // add species concentrations
+    // get total number of reactions
+    var numRxns = parseInt($(".rxntable tr td.rxnnum").last().html());
+    // add a header for each reaction constant
+    var keys = [...Array(numRxns).keys()];
+    h3 = h2.concat(keys.map((n) => 'k_'+(n+1)));
+
+    // save csv to data folder
+    // export_csv(h3, [], ",", "data/rxnlog");
+
+}
+
+
+
+
+// adapted from https://seegatesite.com/tutorial-read-and-write-csv-file-with-javascript/
+const export_csv = (arrayHeader, arrayData, delimiter, fileName) => {
+    let header = arrayHeader.join(delimiter) + '\n';
+    let csv = header;
+    arrayData.forEach( array => {
+        csv += array.join(delimiter)+"\n";
+    });
+
+    let csvData = new Blob([csv], { type: 'text/csv' });  
+    let csvUrl = URL.createObjectURL(csvData);
+
+    let hiddenElement = document.createElement('a');
+    hiddenElement.href = csvUrl;
+    hiddenElement.target = '_blank';
+    hiddenElement.download = fileName + '.csv';
+    hiddenElement.click();
+}
+
+
+
+// Waiting time graphic
+// set up uniform distribution visual
+function displayWaitingUnif(rand) {
+    x2 = [rand, rand]; 
+    y2 = [0, 2]
+
+    console.log("rand: "+ rand)
+    console.log("x2: "+ x2)
+    dataset_unifsamp = []
+    for (var j = 0; j < x2.length; j++) {
+        dataset_unifsamp[j] = []
+        dataset_unifsamp[j][0] = x2[j]
+        dataset_unifsamp[j][1] = y2[j]
+    }
+    console.log("dataset_unifsamp: "+ dataset_unifsamp)
+
+    //var svg = d3.select('svg#waiting-unif-display');
+    var svg = d3.select('#waiting-container').transition();
+    var line = d3.line()
+        .x(function(d) { return xScale(d[0]);})
+        .y(function(d) { return yScale(d[1]);});
+    
+    svg.select("path.unifsamp")
+    .attr("d",line(dataset_unifsamp))
+    .attr("stroke", "red")
+    .attr("fill","none")
+    .attr("class", "unifsamp")
+
+        
+
+
+}
+
+
+var x = d3.range(0, 1, 0.0025); 
+var y = new Array(400); for (let i=0; i<400; ++i) y[i] = 1;
+
+var dataset_unifdist = []
+for (var j = 0; j < x.length; j++) {
+    dataset_unifdist[j] = []
+    dataset_unifdist[j][0] = x[j]
+    dataset_unifdist[j][1] = y[j]
+}
+
+
+var x2 = [0, 0]; 
+var y2 = [0, 2]
+
+var dataset_unifsamp = []
+for (var j = 0; j < x2.length; j++) {
+    dataset_unifsamp[j] = []
+    dataset_unifsamp[j][0] = x2[j]
+    dataset_unifsamp[j][1] = y2[j]
+}
+
+
+var w = 250
+var h = 250
+var padding = 25
+
+var xScale = d3.scaleLinear()
+                 .domain([d3.min(x, function(d) { return d }), d3.max(x, function(d) { return d })])
+                 .range([padding, w - padding * 2])
+
+var yScale = d3.scaleLinear()
+             .domain([0, 3])
+             .range([h - padding, padding])
+
+function mycanvas() {
+    var svg = d3.select('svg#waiting-unif-display')
+            .attr('width', w)
+            .attr('height', h)
+    svg.append('rect')
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .attr('fill', 'lightgrey')
+    // Define the axis
+    var xAxis = d3.axisBottom().scale(xScale).ticks(9)
+    var yAxis = d3.axisLeft().scale(yScale).ticks(9)
+    // Create the axis
+    svg.append('g')
+        .attr('class', 'axis')
+        .attr('transform', 'translate(0,' + (h - padding) + ')')
+        .call(xAxis)
+    svg.append('g')
+        .attr('class', 'axis')
+        .attr('transform', 'translate(' + padding + ',0)')
+        .call(yAxis)
+
+    var line = d3.line()
+                 .x(function(d) { return xScale(d[0]);})
+                 .y(function(d) { return yScale(d[1]);});
+                 
+	  svg.append("path")
+       .attr("d", line(dataset_unifdist))
+       .attr("stroke", "white")
+       .attr("fill", "none")
+       .attr("class", "unifdist")
+    svg.append("path")
+        .attr("d",line(dataset_unifsamp))
+        .attr("stroke", "red")
+        .attr("fill","none")
+        .attr("class", "unifsamp")
+}
+
+mycanvas();

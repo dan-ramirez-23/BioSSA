@@ -7,9 +7,10 @@
   <title>BioSSA</title>
   <link rel="stylesheet" href="main.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
   <script type="text/javascript" async
-  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js?config=TeX-MML-AM_CHTML">
-</script>
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js?config=TeX-MML-AM_CHTML"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <script defer src="src/index.js" charset="utf-8"></script>
 </head>
 <body>
@@ -258,6 +259,16 @@
                   
 
               </table>
+            </div>
+            <div id="waiting-container">
+              <h5>Waiting Time</h5>
+              <svg id="waiting-unif-display" width="500" height="400">
+
+              </svg>
+
+            </div>
+            <div id="time-summary-container">
+
             </div>
             
 

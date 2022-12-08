@@ -8,12 +8,14 @@ var currentConcList = [];
 var propList = [];
 var rxnCount;
 var formalPropList = [];
-
+var xScale, yScale, xScale_exp, yScale_exp;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
 //  dataType: "script"
 // });
+
+
 
 
 for (i = 0; i < dropdown.length; i++) {
@@ -119,7 +121,7 @@ $("#add-rxn").click(function() {
     //broken up below for readability
     var newRow = '<tr>';
     newRow +='<td class="rxndelete"><button>Delete</button></td>'; // rxn delete button
-    newRow +='<td class="rxnnum" id="'+rxnNum+'">'+rxnNum+'. </td>'; // rxn number
+    newRow +='<td class="rxnnum" id="rxnnum'+rxnNum+'">'+rxnNum+'. </td>'; // rxn number
     newRow += '<td><select class="reactant-select"></select></td>'; // first reactant selector
     newRow +='<td><button class="add-reactant">+</button></td>'; // add reactant button 
     newRow +='<td>&#x2192</td>'; // arrow
@@ -265,13 +267,16 @@ function getRxnPropensity(rxnNum) {
     formalProp += '*';
     
     // get reactants for the rxn
+    console.log("rxnnum: "+rxnNum)
     var reactants = [];
     query='.rxntable tr td#rxnnum'+rxnNum;
     $(query).parent().find("select.reactant-select").find(":selected").each(function() {
         if($(this).val() != "None") {
             reactants.push($(this).val());
+            console.log("adding reactant: "+$(this).val())
         }  
     });
+    
 
     // cat together formal propensity, while computing actual
     reactants.forEach(rct => {
@@ -413,10 +418,11 @@ function simStep() {
     // generate a random number
     var rand = Math.random();
     var sum = propList.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
-    var tau = -1*Math.log(rand) / sum;
+    var tau = -1*Math.log((1-rand)) / sum;
 
     // update waiting time plot display
     displayWaitingUnif(rand);
+    displayWaitingExp(rand, tau);
 
     // select a reaction
     rand = Math.random();
@@ -527,15 +533,12 @@ function displayWaitingUnif(rand) {
     x2 = [rand, rand]; 
     y2 = [0, 2]
 
-    console.log("rand: "+ rand)
-    console.log("x2: "+ x2)
     dataset_unifsamp = []
     for (var j = 0; j < x2.length; j++) {
         dataset_unifsamp[j] = []
         dataset_unifsamp[j][0] = x2[j]
         dataset_unifsamp[j][1] = y2[j]
     }
-    console.log("dataset_unifsamp: "+ dataset_unifsamp)
 
     //var svg = d3.select('svg#waiting-unif-display');
     var svg = d3.select('#waiting-container').transition();
@@ -548,8 +551,6 @@ function displayWaitingUnif(rand) {
     .attr("stroke", "red")
     .attr("fill","none")
     .attr("class", "unifsamp")
-
-        
 
 
 }
@@ -577,53 +578,233 @@ for (var j = 0; j < x2.length; j++) {
 }
 
 
-var w = 250
-var h = 250
-var padding = 25
+function drawWaitingUnifDisplay() {
+    var w = 250
+    var h = 250
+    var padding = 25
 
-var xScale = d3.scaleLinear()
-                 .domain([d3.min(x, function(d) { return d }), d3.max(x, function(d) { return d })])
-                 .range([padding, w - padding * 2])
+    xScale = d3.scaleLinear()
+                    .domain([d3.min(x, function(d) { return d }), d3.max(x, function(d) { return d })])
+                    .range([padding, w - padding * 2])
 
-var yScale = d3.scaleLinear()
-             .domain([0, 3])
-             .range([h - padding, padding])
+    yScale = d3.scaleLinear()
+                .domain([0, 3])
+                .range([h - padding, padding])
 
-function mycanvas() {
-    var svg = d3.select('svg#waiting-unif-display')
-            .attr('width', w)
-            .attr('height', h)
-    svg.append('rect')
-        .attr('width', '100%')
-        .attr('height', '100%')
-        .attr('fill', 'lightgrey')
-    // Define the axis
-    var xAxis = d3.axisBottom().scale(xScale).ticks(9)
-    var yAxis = d3.axisLeft().scale(yScale).ticks(9)
-    // Create the axis
-    svg.append('g')
-        .attr('class', 'axis')
-        .attr('transform', 'translate(0,' + (h - padding) + ')')
-        .call(xAxis)
-    svg.append('g')
-        .attr('class', 'axis')
-        .attr('transform', 'translate(' + padding + ',0)')
-        .call(yAxis)
+    function mycanvas() {
+        var svg = d3.select('svg#waiting-unif-display')
+                .attr('width', w)
+                .attr('height', h)
+        svg.append('rect')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('fill', 'lightgrey')
+        // Define the axis
+        var xAxis = d3.axisBottom().scale(xScale).ticks(9)
+        var yAxis = d3.axisLeft().scale(yScale).ticks(9)
+        // Create the axis
+        svg.append('g')
+            .attr('class', 'axis')
+            .attr('transform', 'translate(0,' + (h - padding) + ')')
+            .call(xAxis)
+        svg.append('g')
+            .attr('class', 'axis')
+            .attr('transform', 'translate(' + padding + ',0)')
+            .call(yAxis)
 
-    var line = d3.line()
-                 .x(function(d) { return xScale(d[0]);})
-                 .y(function(d) { return yScale(d[1]);});
-                 
-	  svg.append("path")
-       .attr("d", line(dataset_unifdist))
-       .attr("stroke", "white")
-       .attr("fill", "none")
-       .attr("class", "unifdist")
-    svg.append("path")
-        .attr("d",line(dataset_unifsamp))
-        .attr("stroke", "red")
-        .attr("fill","none")
-        .attr("class", "unifsamp")
+        var line = d3.line()
+                    .x(function(d) { return xScale(d[0]);})
+                    .y(function(d) { return yScale(d[1]);});
+                    
+        svg.append("path")
+        .attr("d", line(dataset_unifdist))
+        .attr("stroke", "white")
+        .attr("fill", "none")
+        .attr("class", "unifdist")
+        svg.append("path")
+            .attr("d",line(dataset_unifsamp))
+            .attr("stroke", "red")
+            .attr("fill","none")
+            .attr("class", "unifsamp")
+    }
+
+    mycanvas();
 }
 
-mycanvas();
+
+
+
+
+
+// Generate data from an exponential distribution with parameter sum(propList)
+// For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
+var lambda = 0.5//d3.sum(propList);
+var x_exp = d3.range(0, (4/lambda), (4/lambda/200)); 
+var y_exp = new Array(200); for (let i=0; i<200; ++i) y_exp[i] = 1-Math.exp(-1*lambda*x_exp[i]);
+
+var dataset_expdist = []
+dataset_expdist= transpose([x_exp,y_exp])
+
+
+// Next, generate a horizontal line at y = rand
+var x2_exp = [0, (4/lambda)]; 
+var y2_exp = [0, 0]
+
+var dataset_expsamp = []
+dataset_expsamp= transpose([x2_exp,y2_exp])
+
+
+// Finally, generate a vertical line at x = tau
+var x2_tau = [0, 0]; 
+var y2_tau = [0, 2]
+
+var dataset_tausamp = []
+dataset_tausamp= transpose([x2_tau,y2_tau])
+
+
+
+
+function drawWaitingExpDisplay() {
+    var w = 250
+    var h = 250
+    var padding = 25
+
+    xScale_exp = d3.scaleLinear()
+                    .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
+                    .range([padding, w - padding * 2])
+
+    yScale_exp = d3.scaleLinear()
+                .domain([0, 1])
+                .range([h - padding, padding])
+
+    function mycanvas() {
+        var svg = d3.select('svg#waiting-exp-display')
+                .attr('width', w)
+                .attr('height', h)
+        svg.append('rect')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('fill', 'lightgrey')
+
+        // Define the axis
+        var xAxis = d3.axisBottom().scale(xScale_exp).ticks(9)
+        var yAxis = d3.axisLeft().scale(yScale_exp).ticks(9)
+        // Create the axis
+        svg.append('g')
+            .attr('class', 'axis')
+            .attr('transform', 'translate(0,' + (h - padding) + ')')
+            .call(xAxis)
+        svg.append('g')
+            .attr('class', 'axis')
+            .attr('transform', 'translate(' + padding + ',0)')
+            .call(yAxis)
+
+        var line = d3.line()
+                    .x(function(d) { return xScale_exp(d[0]);})
+                    .y(function(d) { return yScale_exp(d[1]);});
+                  
+        // Add a line for the exponential distribution
+        svg.append("path")
+        .attr("d", line(dataset_expdist))
+        .attr("stroke", "white")
+        .attr("fill", "none")
+        .attr("class", "expdist")
+        // Add the horizontal line
+        svg.append("path")
+            .attr("d",line(dataset_expsamp))
+            .attr("stroke", "red")
+            .attr("fill","none")
+            .attr("class", "expsamp")
+        // Add the vertical line
+        svg.append("path")
+            .attr("d",line(dataset_tausamp))
+            .attr("stroke", "blue")
+            .attr("fill","none")
+            .attr("class", "tausamp")
+
+    }
+
+    mycanvas();
+}
+
+
+
+
+
+
+// Exponential cdf
+function expCDF(lambda, x) {
+    return(1 - Math.exp(-1*lambda*x))
+}
+
+// Waiting time graphic
+// set up uniform distribution visual
+function displayWaitingExp(rand, tau) {
+
+
+
+    // Generate data from an exponential distribution with parameter sum(propList)
+    // For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
+    lambda = d3.sum(propList);
+    x_exp = d3.range(0, (4/lambda), (4/lambda/200)); 
+    y_exp = new Array(200); for (let i=0; i<200; ++i) y_exp[i] = 1-Math.exp(-1*lambda*x_exp[i]);
+
+    dataset_expdist = []
+    dataset_expdist= transpose([x_exp,y_exp])
+
+
+    // Next, generate a horizontal line at y = rand
+    x2_exp = [0, tau]; 
+    y2_exp = [rand, rand]
+
+    dataset_expsamp = []
+    dataset_expsamp= transpose([x2_exp,y2_exp])
+
+
+    // Finally, generate a vertical line at x = tau
+    x2_tau = [tau, tau]; 
+    y2_tau = [0, rand]
+
+    dataset_tausamp = []
+    dataset_tausamp= transpose([x2_tau,y2_tau])
+
+    var w = 250
+    var h = 250
+    var padding = 25
+
+    xScale_exp = d3.scaleLinear()
+                    .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
+                    .range([padding, w - padding * 2])
+
+    yScale_exp = d3.scaleLinear()
+                .domain([0, 1])
+                .range([h - padding, padding])
+
+
+    //var svg = d3.select('svg#waiting-unif-display');
+    var svg = d3.select('#waiting-exp-container').transition();
+    var line = d3.line()
+        .x(function(d) { return xScale_exp(d[0]);})
+        .y(function(d) { return yScale_exp(d[1]);});
+    
+    svg.select("path.expsamp")
+    .attr("d",line(dataset_expsamp))
+    .attr("stroke", "red")
+    .attr("fill","none")
+    .attr("class", "expsamp")
+    svg.select("path.tausamp")
+    .attr("d",line(dataset_tausamp))
+    .attr("stroke", "blue")
+    .attr("fill","none")
+    .attr("class", "tausamp")
+
+        
+
+
+}
+
+
+
+// initialize plots
+drawWaitingUnifDisplay();
+drawWaitingExpDisplay();

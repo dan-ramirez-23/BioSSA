@@ -265,10 +265,6 @@
               <svg id="waiting-unif-display" width="500" height="400">
 
               </svg>
-
-
-             
-
             </div>
             <div id="waiting-exp-container">
               <h5>Waiting Time</h5>
@@ -278,6 +274,15 @@
 
             </div>
             <div id="time-summary-container">
+              <label for="init-time">Initial Time</label>
+              <input type="text" name="init-time" value="0" id="init-time-readout" readonly><br>
+
+              <label for="rxn-int">Reaction Interval</label>
+              <input type="text" name="rxn-int" value="0" id="rxn-int-readout" readonly><br>
+
+              <label for="curr-time">Current Time</label>
+              <input type="text" name="curr-time" value="0" id="curr-time-readout" readonly><br>
+              
 
             </div>
             
@@ -301,6 +306,12 @@
               1 & -1 & 0 & 0 \\ 
               0 & 0 & 1 & -1
               \end{bmatrix}$$
+            </div>
+            <div id="rxn-select-container">
+              <svg id="rxn-select-display" width="500" height="400">
+
+              </svg>
+
             </div>
 
           </div>

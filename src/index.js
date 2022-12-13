@@ -5,10 +5,10 @@ var speciesList = ["None"];
 var stoichMatrix = [];
 var icList = [];
 var currentConcList = [];
-var propList = [];
+var propList = [0.2, 0, 0, 0];
 var rxnCount;
 var formalPropList = [];
-var xScale, yScale, xScale_exp, yScale_exp;
+var xScale, yScale, xScale_exp, yScale_exp, xScale_rxnSelect, yScale_rxnSelect;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
@@ -226,6 +226,10 @@ $("#params-load").click(function () {
     updateStoichMatrix();
     // update initial state display
     displayIC();
+    // update time display
+    $("#init-time-readout").val("0");
+    $("#rxn-int-readout").val("0");
+    $("#curr-time-readout").val("0");
     // update propensity matrix
     updatePropList();
     displayPropMatrix();
@@ -267,13 +271,11 @@ function getRxnPropensity(rxnNum) {
     formalProp += '*';
     
     // get reactants for the rxn
-    console.log("rxnnum: "+rxnNum)
     var reactants = [];
     query='.rxntable tr td#rxnnum'+rxnNum;
     $(query).parent().find("select.reactant-select").find(":selected").each(function() {
         if($(this).val() != "None") {
             reactants.push($(this).val());
-            console.log("adding reactant: "+$(this).val())
         }  
     });
     
@@ -423,6 +425,8 @@ function simStep() {
     // update waiting time plot display
     displayWaitingUnif(rand);
     displayWaitingExp(rand, tau);
+    updateTimeDisplay(tau);
+    
 
     // select a reaction
     rand = Math.random();
@@ -437,6 +441,8 @@ function simStep() {
         }
         rxn += 1;
     }; 
+
+    displayRxnSelect(randRxn, sum, rxn+1);
 
     // update selected reaction display
 
@@ -471,6 +477,17 @@ function updatePrevStateDisplay() {
     // load MathJax again for it to process the update
     MathJax.typeset();
 
+}
+
+
+// Update display of waiting times in SSA Setup, top panel
+function updateTimeDisplay(tau) {
+    var lastTime = parseFloat($("#curr-time-readout").val());
+    var newTime = lastTime + tau
+
+    $("#init-time-readout").val(lastTime);
+    $("#rxn-int-readout").val(tau);
+    $("#curr-time-readout").val(newTime);
 }
 
 
@@ -687,17 +704,17 @@ function drawWaitingExpDisplay() {
             .attr('fill', 'lightgrey')
 
         // Define the axis
-        var xAxis = d3.axisBottom().scale(xScale_exp).ticks(9)
-        var yAxis = d3.axisLeft().scale(yScale_exp).ticks(9)
+        var xAxis_exp = d3.axisBottom().scale(xScale_exp).ticks(9)
+        var yAxis_exp = d3.axisLeft().scale(yScale_exp).ticks(9)
         // Create the axis
         svg.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'x axis')
             .attr('transform', 'translate(0,' + (h - padding) + ')')
-            .call(xAxis)
+            .call(xAxis_exp)
         svg.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'y axis')
             .attr('transform', 'translate(' + padding + ',0)')
-            .call(yAxis)
+            .call(yAxis_exp)
 
         var line = d3.line()
                     .x(function(d) { return xScale_exp(d[0]);})
@@ -741,8 +758,6 @@ function expCDF(lambda, x) {
 // set up uniform distribution visual
 function displayWaitingExp(rand, tau) {
 
-
-
     // Generate data from an exponential distribution with parameter sum(propList)
     // For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
     lambda = d3.sum(propList);
@@ -781,8 +796,22 @@ function displayWaitingExp(rand, tau) {
                 .range([h - padding, padding])
 
 
+    // Define the axis
+    var xAxis_exp = d3.axisBottom().scale(xScale_exp).ticks(9)
+    var yAxis_exp = d3.axisLeft().scale(yScale_exp).ticks(9)
+   
+
+
     //var svg = d3.select('svg#waiting-unif-display');
     var svg = d3.select('#waiting-exp-container').transition();
+
+    // update axes
+    svg.selectAll(".x.axis")
+        .call(xAxis_exp)
+    svg.selectAll(".y.axis")
+        .call(yAxis_exp)
+
+
     var line = d3.line()
         .x(function(d) { return xScale_exp(d[0]);})
         .y(function(d) { return yScale_exp(d[1]);});
@@ -804,7 +833,192 @@ function displayWaitingExp(rand, tau) {
 }
 
 
+// Finally, generate a vertical line at x = tau
+//var x_rxnSelect = ["Propensity", "Propensity", "Propensity", "Propensity", "Sample"]; 
+var y_rxnSelect = [0.2, 0, 0, 0]
+
+
+var rxnNum_rxnSelect = ["k_1", "k_2", "k_3", "k_4"]
+var dataset_rxnSelect = []//new Array((rxnNum_rxnSelect.length+1)).fill(0).map(() => new Array(2).fill(0));
+// dataset_rxnSelect[0][0] = "Propensity"
+// dataset_rxnSelect[0][1] = "Sample"
+// for(var i = 1; i <= rxnNum_rxnSelect.length; i++) {
+//     dataset_rxnSelect[i][0] = y_rxnSelect[i]
+//     dataset_rxnSelect[i][1] = 0
+// }
+
+// dataset_rxnSelect= transpose(dataset_rxnSelect)
+
+// dataset_rxnSelect = [
+//     {group: "Propensity", k_1: 0.2, k_2: 0, k_3: 0, k_4: 0},
+//     {group: "Sample", k_1: 0.2, k_2: 0, k_3: 0, k_4: 0}
+// ]
+
+
+
+string_csv = 'group,k1,k2,k3,k4\nPropensity,'+y_rxnSelect.reduce((acc, add) => acc += ","+add)+'\nSample,0.1,0,0,0';
+dataset_rxnSelect = d3.csvParse(string_csv);
+
+var subgroups = dataset_rxnSelect.columns.slice(1) //rxnNum_rxnSelect
+
+// List of groups = species here = value of the first column called group -> I show them on the X axis
+var groups = d3.map(dataset_rxnSelect, function(d){return(d.group)}).keys()
+
+
+
+function drawRxnSelectDisplay() {
+
+    var w = 250
+    var h = 250
+    var padding = 25
+
+    xScale_rxnSelect = d3.scaleBand()
+                    .domain(["Propensity","Sample"])
+                    .range([padding, w - padding * 2])
+
+    yScale_rxnSelect = d3.scaleLinear()
+                .domain([0, 1.2*d3.sum(y_rxnSelect)])
+                .range([h - padding, padding])
+
+    var svg = d3.select('svg#rxn-select-display')
+        .attr('width', w)
+        .attr('height', h)
+    svg.append('rect')
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .attr('fill', 'lightgrey')
+
+    // Define the axis
+    //xAxis_rxnSelect = d3.axisBottom().scale(xScale_rxnSelect).tickSizeOuter(0)
+    //yAxis_rxnSelect = d3.axisLeft().scale(yScale_rxnSelect).ticks(9)
+    // Create the axis
+    svg.append('g')
+        .attr('class', 'x axis')
+        .attr('transform', 'translate(0,' + (h - padding) + ')')
+        .call(d3.axisBottom(xScale_rxnSelect).tickSizeOuter(0));
+    svg.append('g')
+        .attr('class', 'y axis')
+        .attr('transform', 'translate(' + padding + ',0)')
+        .call(d3.axisLeft(yScale_rxnSelect));
+
+
+
+    displayRxnSelect(0,d3.sum(y_rxnSelect),1);
+
+}
+
+
+
+// Update rxnSelect display
+// Waiting time graphic
+// set up uniform distribution visual
+function displayRxnSelect(randRxn, sum, rxnNum) {
+
+
+
+    sampList = new Array(propList.length).fill(0)
+    sampList[rxnNum-1] = randRxn
+
+
+
+    // Create new data string
+    string_csv = 'group,k1,k2,k3,k4\nPropensity,'+propList.reduce((acc, add) => acc += ","+add)+
+        '\nSample,'+sampList.reduce((acc, add) => acc += ","+add);
+    dataset_rxnSelect = d3.csvParse(string_csv);
+
+    // Update plot
+    var w = 250
+    var h = 250
+    var padding = 25
+
+    xScale_rxnSelect = d3.scaleBand()
+                    .domain(["Propensity","Sample"])
+                    .range([padding, w - padding * 2])
+
+    yScale_rxnSelect = d3.scaleLinear()
+                .domain([0, 1.2*d3.sum(propList)])
+                .range([h - padding, padding])
+
+
+    // color palette = one color per subgroup
+    var color = d3.scaleOrdinal()
+    .domain(rxnNum_rxnSelect)
+    .range(["#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"])
+
+    //stack the data? --> stack per subgroup
+    //var stackedData = d3.stack()
+    //.keys(subgroups)
+    //(dataset_rxnSelect)
+
+
+    var stack = d3.stack()
+        .keys(subgroups)
+        .order(d3.stackOrderNone)
+        .offset(d3.stackOffsetNone);
+
+
+    var svg = d3.select('svg#rxn-select-display');
+    //var svg = d3.select('#rxn-select-container').transition();
+
+    // update y-axis
+    svg.selectAll(".y.axis")
+        .call(d3.axisLeft(yScale_rxnSelect));
+
+
+    // each data column (a.k.a "key" or "series") needs to be iterated over
+    // the variable alphabet represents the unique keys of the stacks
+    //groups = ["Propensity","Sample"]
+
+
+
+    // Add bars
+    // svg.append("g")
+    // .selectAll("g")
+    // .data(stackedData)
+    // //// enter each bar
+    // .join("g")
+    //     .attr("fill", function(d) { return color(d.key); })
+    //     .selectAll("rect")
+    //     // //// enter a second time = loop subgroup per subgroup to add all rectangles
+    //     .data(function(d) { return d; })
+    //     .join("rect")
+    //         .attr("x", function(d) { 
+    //             return xScale_rxnSelect(d.data.group); })
+    //         .attr("y", function(d) { return yScale_rxnSelect(d[1]); })
+    //         .attr("height", function(d) { return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); })
+    //         .attr("width",xScale_rxnSelect.bandwidth())
+
+    
+    
+    subgroups.forEach(function(key, key_index){
+
+        var bar = svg.selectAll(".bar-" + key)
+            .data(stack(dataset_rxnSelect)[key_index], function(d){ return d.data["group"] + "-" + key; });
+   
+        bar
+            .transition()
+            .attr("x", function(d){ return xScale_rxnSelect(d.data["group"]); })
+            .attr("y", function(d){ return yScale_rxnSelect(d[1]); })
+            .attr("height", function(d){ return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); });
+
+        bar.enter().append("rect")
+            .attr("class", function(d){ return "bar bar-" + key; })
+            .attr("x", function(d){ return xScale_rxnSelect(d.data.group); })
+            .attr("y", function(d){ return yScale_rxnSelect(d[1]); })
+            .attr("height", function(d){ return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); })
+            .attr("width", xScale_rxnSelect.bandwidth())
+            .attr("fill", function(d){ return color(key); })
+
+    });    
+        
+
+
+}
+
+
+
 
 // initialize plots
 drawWaitingUnifDisplay();
 drawWaitingExpDisplay();
+drawRxnSelectDisplay();

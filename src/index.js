@@ -5,10 +5,14 @@ var speciesList = ["None"];
 var stoichMatrix = [];
 var icList = [];
 var currentConcList = [];
+//trajectory is a 3D array, dim-1(size 1 by default): trajectory ID , dim-2: time, dim-3: species
+var trajectory = [];
+var times = [];
 var propList = [0.2, 0, 0, 0];
 var rxnCount;
 var formalPropList = [];
 var xScale, yScale, xScale_exp, yScale_exp, xScale_rxnSelect, yScale_rxnSelect;
+var currTime = 0;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
@@ -233,10 +237,20 @@ $("#params-load").click(function () {
     // update propensity matrix
     updatePropList();
     displayPropMatrix();
-    // create/reset rxn_log, and run one step
+    // create/reset rxn_log
     setupRxnLog();
-    //simStep();
+
+    currTime = 0;
+    updateTrajectoryData(currTime);
 });
+
+
+function updateTrajectoryData(currTime) {
+    trajectory.append(currentConcList);
+    times.push(currTime);
+
+    console.log("trajectories: "+ trajectory);
+}
 
 function displayIC() {
     var icMatrix = '<h5>Initial State X</h5> \n$$\\begin{bmatrix}\n';
@@ -416,7 +430,6 @@ $("#sim-step").click(function() {
 function simStep() {
 
     // obtain reaction time interval
-    
     // generate a random number
     var rand = Math.random();
     var sum = propList.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
@@ -426,6 +439,7 @@ function simStep() {
     displayWaitingUnif(rand);
     displayWaitingExp(rand, tau);
     updateTimeDisplay(tau);
+    currTime += tau;
     
 
     // select a reaction
@@ -448,11 +462,15 @@ function simStep() {
 
     // compute new system state
     var rxnVector = stoichMatrix[rxn];
+    var prevConcList = currentConcList;
     currentConcList = [...currentConcList.map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
 
 
     // update system state display
-    updatePrevStateDisplay();
+    updatePrevStateDisplay(rxn, prevConcList);
+
+    // update trajectory data
+    updateTrajectoryData(currTime)
 
     // update propensity display
     updatePropList();
@@ -462,17 +480,45 @@ function simStep() {
 }
 
 
-function updatePrevStateDisplay() {
-    var outMatrix = '<h5>Initial State X</h5> \n$$\\begin{bmatrix}\n';
+function updatePrevStateDisplay(rxn, prevConcList) {
+    // First, update previous state 
+    var outMatrix = '$$\\begin{bmatrix}\n';
+    speciesList.forEach((species, i) => {
+        if(species != "None") {
+            var speciesConc = prevConcList[i-1];
+            outMatrix += speciesConc+' \\\\\n';
+        }
+    });
+    outMatrix += '\\end{bmatrix} +';
+
+    // Next, get the column representing the selected reaction
+    outMatrix += '\\begin{bmatrix}\n';
+    var rxnVector = stoichMatrix[rxn];
+
+    speciesList.forEach((species, i) => {
+        if(species != "None") {
+            var speciesConc = rxnVector[i-1];
+            outMatrix += speciesConc+' \\\\\n';
+        }
+    });
+    outMatrix += '\\end{bmatrix} =';
+
+    // Finally, update the new state
+    outMatrix += '\\begin{bmatrix}\n';
+    var rxnVector = stoichMatrix[rxn];
+
     speciesList.forEach((species, i) => {
         if(species != "None") {
             var speciesConc = currentConcList[i-1];
             outMatrix += speciesConc+' \\\\\n';
         }
     });
-    outMatrix += '\\end{bmatrix}$$';
-    $("#prevStateDisplay").empty();
-    $("#prevStateDisplay").append(outMatrix);
+    outMatrix += "\\end{bmatrix} $$"
+
+
+
+    $("#curr-state-display").empty();
+    $("#curr-state-display").append(outMatrix);
 
     // load MathJax again for it to process the update
     MathJax.typeset();
@@ -839,22 +885,7 @@ var y_rxnSelect = [0.2, 0, 0, 0]
 
 
 var rxnNum_rxnSelect = ["k_1", "k_2", "k_3", "k_4"]
-var dataset_rxnSelect = []//new Array((rxnNum_rxnSelect.length+1)).fill(0).map(() => new Array(2).fill(0));
-// dataset_rxnSelect[0][0] = "Propensity"
-// dataset_rxnSelect[0][1] = "Sample"
-// for(var i = 1; i <= rxnNum_rxnSelect.length; i++) {
-//     dataset_rxnSelect[i][0] = y_rxnSelect[i]
-//     dataset_rxnSelect[i][1] = 0
-// }
-
-// dataset_rxnSelect= transpose(dataset_rxnSelect)
-
-// dataset_rxnSelect = [
-//     {group: "Propensity", k_1: 0.2, k_2: 0, k_3: 0, k_4: 0},
-//     {group: "Sample", k_1: 0.2, k_2: 0, k_3: 0, k_4: 0}
-// ]
-
-
+var dataset_rxnSelect = []
 
 string_csv = 'group,k1,k2,k3,k4\nPropensity,'+y_rxnSelect.reduce((acc, add) => acc += ","+add)+'\nSample,0.1,0,0,0';
 dataset_rxnSelect = d3.csvParse(string_csv);
@@ -966,30 +997,6 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
     // each data column (a.k.a "key" or "series") needs to be iterated over
-    // the variable alphabet represents the unique keys of the stacks
-    //groups = ["Propensity","Sample"]
-
-
-
-    // Add bars
-    // svg.append("g")
-    // .selectAll("g")
-    // .data(stackedData)
-    // //// enter each bar
-    // .join("g")
-    //     .attr("fill", function(d) { return color(d.key); })
-    //     .selectAll("rect")
-    //     // //// enter a second time = loop subgroup per subgroup to add all rectangles
-    //     .data(function(d) { return d; })
-    //     .join("rect")
-    //         .attr("x", function(d) { 
-    //             return xScale_rxnSelect(d.data.group); })
-    //         .attr("y", function(d) { return yScale_rxnSelect(d[1]); })
-    //         .attr("height", function(d) { return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); })
-    //         .attr("width",xScale_rxnSelect.bandwidth())
-
-    
-    
     subgroups.forEach(function(key, key_index){
 
         var bar = svg.selectAll(".bar-" + key)
@@ -1017,8 +1024,91 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
 
+// Generate data from an exponential distribution with parameter sum(propList)
+// For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
+// var lambda = 0.5//d3.sum(propList);
+// var x_exp = d3.range(0, (4/lambda), (4/lambda/200)); 
+// var y_exp = new Array(200); for (let i=0; i<200; ++i) y_exp[i] = 1-Math.exp(-1*lambda*x_exp[i]);
+
+// var dataset_expdist = []
+// dataset_expdist= transpose([x_exp,y_exp])
+
+
+// // Next, generate a horizontal line at y = rand
+// var x2_exp = [0, (4/lambda)]; 
+// var y2_exp = [0, 0]
+
+// var dataset_expsamp = []
+// dataset_expsamp= transpose([x2_exp,y2_exp])
+
+
+// // Finally, generate a vertical line at x = tau
+// var x2_tau = [0, 0]; 
+// var y2_tau = [0, 2]
+
+// var dataset_tausamp = []
+// dataset_tausamp= transpose([x2_tau,y2_tau])
+
+
+
+// Draw initial plot for trajectory display
+function drawTrajectoryDisplay() {
+    var w = 500
+    var h = 250
+    var padding = 25
+
+    xScale_traj = d3.scaleLinear()
+                    .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
+                    .range([padding, w - padding * 2])
+
+    yScale_traj = d3.scaleLinear()
+                .domain([0, 1])
+                .range([h - padding, padding])
+
+    function mycanvas() {
+        var svg = d3.select('svg#traj-display')
+                .attr('width', w)
+                .attr('height', h)
+        svg.append('rect')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('fill', 'lightgrey')
+
+        // Define the axis
+        var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
+        var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
+        // Create the axis
+        svg.append('g')
+            .attr('class', 'x axis')
+            .attr('transform', 'translate(0,' + (h - padding) + ')')
+            .call(xAxis_traj)
+        svg.append('g')
+            .attr('class', 'y axis')
+            .attr('transform', 'translate(' + padding + ',0)')
+            .call(yAxis_traj)
+
+        var line = d3.line()
+                    .x(function(d) { return xScale_traj(d[0]);})
+                    .y(function(d) { return yScale_traj(d[1]);});
+                  
+        // Add a line for the exponential distribution
+        svg.append("path")
+        .attr("d", line(dataset_expdist))
+        .attr("stroke", "white")
+        .attr("fill", "none")
+        .attr("class", "expdist")
+
+    }
+
+    mycanvas();
+}
+
+
+
+
 
 // initialize plots
 drawWaitingUnifDisplay();
 drawWaitingExpDisplay();
 drawRxnSelectDisplay();
+drawTrajectoryDisplay();

@@ -7,12 +7,17 @@ var icList = [];
 var currentConcList = [];
 //trajectory is a 3D array, dim-1(size 1 by default): trajectory ID , dim-2: time, dim-3: species
 var trajectory = [];
+// times is a 2D array, dim-1 trajectory ID, dim-2 time
 var times = [];
-var propList = [0.2, 0, 0, 0];
+// propList is a 2D array, dim-1 trajectory ID, dim-2 species
+var propList = [];
+propList[0] = [0.2, 0, 0, 0];
 var rxnCount;
 var formalPropList = [];
 var xScale, yScale, xScale_exp, yScale_exp, xScale_rxnSelect, yScale_rxnSelect;
-var currTime = 0;
+// currTime is an array, dim-1: trajectory ID
+var currTime = [0];
+var numTrajectories = 1;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
@@ -235,21 +240,34 @@ $("#params-load").click(function () {
     $("#rxn-int-readout").val("0");
     $("#curr-time-readout").val("0");
     // update propensity matrix
-    updatePropList();
-    displayPropMatrix();
+    for(let i = 0; i < numTrajectories; i++) {
+        updatePropList(i);
+        currTime[i] = 0;
+    }
+    // display prop matrix for first trajectory
+    displayPropMatrix(0);
     // create/reset rxn_log
     setupRxnLog();
 
-    currTime = 0;
     updateTrajectoryData(currTime);
 });
 
 
 function updateTrajectoryData(currTime) {
-    trajectory.append(currentConcList);
-    times.push(currTime);
 
-    console.log("trajectories: "+ trajectory);
+    // initialize trajectories if time==0
+    if(currTime[0] == 0) {
+        for(let i = 0; i < numTrajectories; i++) { 
+            trajectory[i] = []
+            times[i] = []
+        }
+    }
+
+    // update trajectories
+    for(let i = 0; i < numTrajectories; i++) {       
+        trajectory[i].push(currentConcList[i]);
+        times[i].push(currTime);
+    }
 }
 
 function displayIC() {
@@ -262,7 +280,7 @@ function displayIC() {
             icList.push(parseFloat(speciesIC));
         }
     });
-    currentConcList = [...icList];
+    currentConcList[0] = [...icList];
     icMatrix += '\\end{bmatrix}$$';
     $("#icDisplay").empty();
     $("#icDisplay").append(icMatrix);
@@ -276,7 +294,7 @@ function displayIC() {
 
 
 // get formal & actual propensity function for one reaction
-function getRxnPropensity(rxnNum) {
+function getRxnPropensity(rxnNum, trajID) {
     // allocate output vars
     var formalProp = 'k_'+rxnNum;
     
@@ -303,7 +321,7 @@ function getRxnPropensity(rxnNum) {
         formalProp += 'X['+rctNum+']';
 
         // get reactant concentration
-        var rctCon = parseFloat(currentConcList[rctNum]);
+        var rctCon = parseFloat(currentConcList[trajID][rctNum]);
         actualProp *= rctCon;
     });
 
@@ -373,17 +391,19 @@ function transpose(matrix) {
 
 
 
-function updatePropList() {
+function updatePropList(trajID) {
     formalPropList = [];
-    propList = [];
+    propList[trajID] = [];
     // iterate over each reaction
     $(".rxntable tr").each( function() {
         // get rxn number
         var rxnNum = parseInt($(this).find("td.rxnnum").html());
-        var rxnProps = getRxnPropensity(rxnNum);
 
-        formalPropList.push(rxnProps[0]);
-        propList.push(rxnProps[1]);
+        var rxnProps = getRxnPropensity(rxnNum, trajID);
+        if(trajID == 0) {
+            formalPropList.push(rxnProps[0]);
+        }
+        propList[trajID].push(rxnProps[1]);
 
         
     });
@@ -401,8 +421,7 @@ function getPropMatrixDisplay() {
     $(".rxntable tr").each( function() {
         // get rxn number
         var rxnNum = parseInt($(this).find("td.rxnnum").html());
-        //var rxnProps = getRxnPropensity(rxnNum);
-        var rxnProps = propList[rxnNum-1].toFixed(2);
+        var rxnProps = propList[0][rxnNum-1].toFixed(2);
         var rxnFormalProp = formalPropList[rxnNum-1];
         out += '<tr><td>' + rxnFormalProp + '</td>'; // open row, add formal propensity
         out += '<td>' + rxnProps + '</td></tr>'; // add actual propensity, close row
@@ -429,53 +448,68 @@ $("#sim-step").click(function() {
 
 function simStep() {
 
-    // obtain reaction time interval
-    // generate a random number
-    var rand = Math.random();
-    var sum = propList.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
-    var tau = -1*Math.log((1-rand)) / sum;
 
-    // update waiting time plot display
-    displayWaitingUnif(rand);
-    displayWaitingExp(rand, tau);
-    updateTimeDisplay(tau);
-    currTime += tau;
-    
+    // store previous state to track single trajectory
+    var prevConcList = currentConcList[0];
 
-    // select a reaction
-    rand = Math.random();
-    var randRxn = rand*sum;
+    // loop over each reaction trajectory
+    for(let i = 0; i < numTrajectories; i++) {
+        // obtain reaction time interval
+        // generate a random number
+        var rand = Math.random();
+        var sum = propList[i].reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+        console.log("propList now:"+propList[i]);
+        var tau = -1*Math.log((1-rand)) / sum;
+        console.log("tau now:"+tau);
+        currTime[i] += tau;
 
-    var rxn = 0;
-    var cumsum = 0;
-    for(let prop of propList) {
-        cumsum += parseFloat(prop);
-        if(cumsum >= randRxn) {
-            break;
+        // select a reaction
+        rand2 = Math.random();
+        var randRxn = rand2*sum;
+
+        var rxn = 0;
+        var cumsum = 0;
+        for(let prop of propList[i]) {
+            cumsum += parseFloat(prop);
+            if(cumsum >= randRxn) {
+                break;
+            }
+            rxn += 1;
+        }; 
+
+        // compute new system state
+        var rxnVector = stoichMatrix[rxn];
+        currentConcList[i] = [...currentConcList[i].map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
+
+        if(i == 0) {
+            // update plots in the case of single trajectory simulation
+            // update waiting time plot display
+            console.log("tau when updating plots: "+tau);
+
+            displayWaitingUnif(rand);
+            displayWaitingExp(rand, tau);
+            updateTimeDisplay(tau);
+
+            // update selected reaction display
+            displayRxnSelect(randRxn, sum, rxn+1);
+
+            // update system state display
+            updatePrevStateDisplay(rxn, prevConcList);
+            
+            // update propensity display
+            displayPropMatrix();
         }
-        rxn += 1;
-    }; 
 
-    displayRxnSelect(randRxn, sum, rxn+1);
+        //
+        updatePropList(i);
 
-    // update selected reaction display
+    }
 
-    // compute new system state
-    var rxnVector = stoichMatrix[rxn];
-    var prevConcList = currentConcList;
-    currentConcList = [...currentConcList.map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
-
-
-    // update system state display
-    updatePrevStateDisplay(rxn, prevConcList);
 
     // update trajectory data
-    updateTrajectoryData(currTime)
+    updateTrajectoryData(currTime);
 
-    // update propensity display
-    updatePropList();
     
-    displayPropMatrix();
 
 }
 
@@ -509,7 +543,7 @@ function updatePrevStateDisplay(rxn, prevConcList) {
 
     speciesList.forEach((species, i) => {
         if(species != "None") {
-            var speciesConc = currentConcList[i-1];
+            var speciesConc = currentConcList[0][i-1];
             outMatrix += speciesConc+' \\\\\n';
         }
     });
@@ -537,7 +571,7 @@ function updateTimeDisplay(tau) {
 }
 
 
-function getRxnInterval() {
+function getRxnInterval(trajID) {
     //pyodide.globals.speciesList = speciesList;
     //pyodide.globals.propList = propList;
     //console.log(pyodide.runPython(`
@@ -546,7 +580,7 @@ function getRxnInterval() {
 
     // generate a random number
     //var rand = Math.random();
-    var sum = propList.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+    var sum = propList[trajID].reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
     var tau = -1*Math.log(rand) / Math.sum;
     return(tau);
 }
@@ -804,9 +838,11 @@ function expCDF(lambda, x) {
 // set up uniform distribution visual
 function displayWaitingExp(rand, tau) {
 
+    console.log("propList inside plot function:"+propList[0]);
+
     // Generate data from an exponential distribution with parameter sum(propList)
     // For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
-    lambda = d3.sum(propList);
+    lambda = d3.sum(propList[0]);
     x_exp = d3.range(0, (4/lambda), (4/lambda/200)); 
     y_exp = new Array(200); for (let i=0; i<200; ++i) y_exp[i] = 1-Math.exp(-1*lambda*x_exp[i]);
 
@@ -947,13 +983,13 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
 
-    sampList = new Array(propList.length).fill(0)
+    sampList = new Array(propList[0].length).fill(0)
     sampList[rxnNum-1] = randRxn
 
 
 
     // Create new data string
-    string_csv = 'group,k1,k2,k3,k4\nPropensity,'+propList.reduce((acc, add) => acc += ","+add)+
+    string_csv = 'group,k1,k2,k3,k4\nPropensity,'+propList[0].reduce((acc, add) => acc += ","+add)+
         '\nSample,'+sampList.reduce((acc, add) => acc += ","+add);
     dataset_rxnSelect = d3.csvParse(string_csv);
 
@@ -967,7 +1003,7 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
                     .range([padding, w - padding * 2])
 
     yScale_rxnSelect = d3.scaleLinear()
-                .domain([0, 1.2*d3.sum(propList)])
+                .domain([0, 1.2*d3.sum(propList[0])])
                 .range([h - padding, padding])
 
 
@@ -1024,34 +1060,20 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
 
-// Generate data from an exponential distribution with parameter sum(propList)
-// For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
-// var lambda = 0.5//d3.sum(propList);
-// var x_exp = d3.range(0, (4/lambda), (4/lambda/200)); 
-// var y_exp = new Array(200); for (let i=0; i<200; ++i) y_exp[i] = 1-Math.exp(-1*lambda*x_exp[i]);
-
-// var dataset_expdist = []
-// dataset_expdist= transpose([x_exp,y_exp])
-
-
-// // Next, generate a horizontal line at y = rand
-// var x2_exp = [0, (4/lambda)]; 
-// var y2_exp = [0, 0]
-
-// var dataset_expsamp = []
-// dataset_expsamp= transpose([x2_exp,y2_exp])
-
-
-// // Finally, generate a vertical line at x = tau
-// var x2_tau = [0, 0]; 
-// var y2_tau = [0, 2]
-
-// var dataset_tausamp = []
-// dataset_tausamp= transpose([x2_tau,y2_tau])
-
 
 
 // Draw initial plot for trajectory display
+
+
+// Generate the initial trajectory data
+var x_tau = [0, 0]; 
+var y2_tau = [0, 2]
+
+var dataset_tausamp = []
+dataset_tausamp= transpose([x2_tau,y2_tau])
+
+
+
 function drawTrajectoryDisplay() {
     var w = 500
     var h = 250
@@ -1064,6 +1086,11 @@ function drawTrajectoryDisplay() {
     yScale_traj = d3.scaleLinear()
                 .domain([0, 1])
                 .range([h - padding, padding])
+
+    // Define the color scale
+    const color = d3.scaleOrdinal()
+        .domain([]) // list of species names/ids (whatever will be in the final df)
+        .range(["red", "green", "blue"]); // color scale
 
     function mycanvas() {
         var svg = d3.select('svg#traj-display')

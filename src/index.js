@@ -18,12 +18,12 @@ var xScale, yScale, xScale_exp, yScale_exp, xScale_rxnSelect, yScale_rxnSelect;
 // currTime is an array, dim-1: trajectory ID
 var currTime = [0];
 var numTrajectories = 1;
+var simTime;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
 //  dataType: "script"
 // });
-
 
 
 
@@ -249,7 +249,13 @@ $("#params-load").click(function () {
     // create/reset rxn_log
     setupRxnLog();
 
+    // record max sim time
+    simTime = $('input[name="time"]').val();
+
+    // update trajectory data
     updateTrajectoryData(currTime);
+
+
 });
 
 
@@ -446,6 +452,10 @@ $("#sim-step").click(function() {
 })
 
 
+function addvector(a,b){
+    return a.map((e,i) => parseFloat(e) + parseFloat(b[i]));
+}
+
 function simStep() {
 
 
@@ -458,9 +468,7 @@ function simStep() {
         // generate a random number
         var rand = Math.random();
         var sum = propList[i].reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
-        console.log("propList now:"+propList[i]);
         var tau = -1*Math.log((1-rand)) / sum;
-        console.log("tau now:"+tau);
         currTime[i] += tau;
 
         // select a reaction
@@ -479,13 +487,12 @@ function simStep() {
 
         // compute new system state
         var rxnVector = stoichMatrix[rxn];
-        currentConcList[i] = [...currentConcList[i].map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
+        currentConcList[i] = addvector(currentConcList[i],rxnVector);
+        //[...currentConcList[i].map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
 
         if(i == 0) {
             // update plots in the case of single trajectory simulation
             // update waiting time plot display
-            console.log("tau when updating plots: "+tau);
-
             displayWaitingUnif(rand);
             displayWaitingExp(rand, tau);
             updateTimeDisplay(tau);
@@ -508,6 +515,9 @@ function simStep() {
 
     // update trajectory data
     updateTrajectoryData(currTime);
+
+    // update trajectory plot
+    updateTrajDisplay(currTime);
 
     
 
@@ -838,8 +848,6 @@ function expCDF(lambda, x) {
 // set up uniform distribution visual
 function displayWaitingExp(rand, tau) {
 
-    console.log("propList inside plot function:"+propList[0]);
-
     // Generate data from an exponential distribution with parameter sum(propList)
     // For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
     lambda = d3.sum(propList[0]);
@@ -1066,34 +1074,49 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
 // Generate the initial trajectory data
-var x_tau = [0, 0]; 
-var y2_tau = [0, 2]
+// mock start data for multiple trajectories
+var traj_time = [0,0,0,3,3,3,0,0,0,2,2,2]
+var traj_conc = [1,0,0,0,1,10,1,0,0,0,1,5]
+var traj_spec = [0,1,2,0,1,2,0,1,2,0,1,2]
+var traj_tID = [0,0,0,0,0,0,1,1,1,1,1,1]
 
-var dataset_tausamp = []
-dataset_tausamp= transpose([x2_tau,y2_tau])
+// mock start data for one trajectory
+// var traj_time = [0,0,0,3,3,3]
+// var traj_conc = [1,0,0,0,1,10]
+// var traj_spec = [0,1,2,0,1,2]
+// var traj_tID = [0,0,0,0,0,0]
 
+// Combine data into objects
+var dataset_traj = []
+for (var i = 0; i < traj_time.length; i++) {
+    dataset_traj.push({
+        traj_time: traj_time[i],
+        traj_conc: traj_conc[i],
+        traj_spec: traj_spec[i],
+        traj_tID: traj_tID[i]
+  });
+}
+
+
+//dataset_traj= transpose([traj_time,traj_conc,traj_spec,traj_tID]);
+// dataset_traj[0] = traj_time;
+// dataset_traj[1] = traj_conc;
+// dataset_traj[2] = traj_spec;
+// dataset_traj[3] = traj_tID;
+console.log("trajectory dataset:");
+console.log(dataset_traj);
+//console.log("accessing by name: ")
+//console.log([...new Set(dataset_traj.map(d => d.traj_spec))]);
 
 
 function drawTrajectoryDisplay() {
     var w = 500
     var h = 250
     var padding = 25
+    var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))]; 
 
-    xScale_traj = d3.scaleLinear()
-                    .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
-                    .range([padding, w - padding * 2])
 
-    yScale_traj = d3.scaleLinear()
-                .domain([0, 1])
-                .range([h - padding, padding])
-
-    // Define the color scale
-    const color = d3.scaleOrdinal()
-        .domain([]) // list of species names/ids (whatever will be in the final df)
-        .range(["red", "green", "blue"]); // color scale
-
-    function mycanvas() {
-        var svg = d3.select('svg#traj-display')
+    var svg = d3.select('svg#traj-display')
                 .attr('width', w)
                 .attr('height', h)
         svg.append('rect')
@@ -1101,33 +1124,177 @@ function drawTrajectoryDisplay() {
             .attr('height', '100%')
             .attr('fill', 'lightgrey')
 
-        // Define the axis
-        var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
-        var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
-        // Create the axis
-        svg.append('g')
-            .attr('class', 'x axis')
-            .attr('transform', 'translate(0,' + (h - padding) + ')')
-            .call(xAxis_traj)
-        svg.append('g')
-            .attr('class', 'y axis')
-            .attr('transform', 'translate(' + padding + ',0)')
-            .call(yAxis_traj)
 
-        var line = d3.line()
-                    .x(function(d) { return xScale_traj(d[0]);})
-                    .y(function(d) { return yScale_traj(d[1]);});
-                  
-        // Add a line for the exponential distribution
-        svg.append("path")
-        .attr("d", line(dataset_expdist))
-        .attr("stroke", "white")
-        .attr("fill", "none")
-        .attr("class", "expdist")
+    // Nest the data by species
+    var nestedData = d3.nest()
+        .key(function(d){
+            return d.traj_spec;
+        })
+        .key(function(d){
+            return d.traj_tID;
+        })
+        .entries(dataset_traj);
+    
+    //.group(dataset_traj, d=>d.traj_spec, d=>d.traj_tID);
+
+
+    xScale_traj = d3.scaleLinear()
+                    .domain([d3.min(dataset_traj, function(d) { return d.traj_time }), d3.max(dataset_traj, function(d) { return d.traj_time })])
+                    .range([padding, w - padding * 2])
+    var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
+    // Create the x-axis
+    svg.append('g')
+        .attr('class', 'x axis')
+        .attr('transform', 'translate(0,' + (h - padding) + ')')
+        .call(xAxis_traj)
+
+    // Create y-axis
+    yScale_traj = d3.scaleLinear()
+                .domain([d3.min(dataset_traj, function(d) { return d.traj_conc }), d3.max(dataset_traj, function(d) { return d.traj_conc })])
+                .range([h - padding, padding])
+    var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
+
+    svg.append('g')
+        .attr('class', 'y axis')
+        .attr('transform', 'translate(' + padding + ',0)')
+        .call(yAxis_traj)
+
+    // Define the color scale
+    const color = d3.scaleOrdinal()
+        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); // color scale
+
+
+    var specGroups = svg.selectAll(".specGroups")
+        .data(nestedData)
+        .enter()
+        .append("g")
+        .attr("stroke", function(d) { return color(d.key)})
+        .attr("class", function(d) {return "specGroup-"+d.key})
+
+    var paths = specGroups.selectAll(".traj")
+        .data(function(d){ 
+            return d.values; 
+        })
+        .enter()
+        .append("path");
+    paths.attr("fill", "none")
+        .attr("d", function(d) { return d3.line()
+            .x(function(d) { return xScale_traj(d.traj_time); })
+            .y(function(d) { return yScale_traj(d.traj_conc); })
+            (d.values)})
+        .attr("class", "traj")
+              //.attr("class", function(d){ return "traj traj-" + spec; })
+
+
+}
+
+
+
+// Update trajectory display
+function updateTrajDisplay(currTime) {
+
+
+    var numSpecies = currentConcList[0].length;
+
+    // loop over trajectories to update data
+    for(let i = 0; i < numTrajectories; i++) {
+        new_time = Array(numSpecies).fill(currTime[i]);
+        new_conc = currentConcList[i];
+        new_spec = [...Array(numSpecies).keys()];
+        new_tID = Array(numSpecies).fill(i);
+
+        // Combine data into objects
+        for (var j = 0; j < new_time.length; j++) {
+            dataset_traj.push({
+                traj_time: new_time[j],
+                traj_conc: new_conc[j],
+                traj_spec: new_spec[j],
+                traj_tID: new_tID[j]
+        });
+        }
 
     }
 
-    mycanvas();
+
+    var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))];
+
+    var w = 500
+    var h = 250
+    var padding = 25
+
+
+
+    // Select plot
+    var svg = d3.select('#traj-container');
+
+    // Update axes
+    xScale_traj = d3.scaleLinear()
+        .domain([d3.min(dataset_traj, function(d) { return d.traj_time }), d3.max(dataset_traj, function(d) { return d.traj_time })])
+        .range([padding, w - padding * 2])
+    var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
+    svg.selectAll(".x.axis")
+        .transition()  
+        .call(xAxis_traj)
+
+    yScale_traj = d3.scaleLinear()
+        .domain([d3.min(dataset_traj, function(d) { return d.traj_conc }), d3.max(dataset_traj, function(d) { return d.traj_conc })])
+        .range([h - padding, padding])
+    var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
+    svg.selectAll(".y.axis")
+        .transition()
+        .call(yAxis_traj)
+
+
+    // define a mapping for lines
+    // Define the line
+    var valueLine = d3.line()
+        .x(function(d) { return xScale_traj(d.traj_time); })
+        .y(function(d) { return yScale_traj(+d.traj_conc); })
+
+
+   
+    // Define the color scale
+    const color = d3.scaleOrdinal()
+        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
+
+
+
+    // Nest the data by species
+    var nestedData = d3.nest()
+        .key(function(d){
+            return d.traj_spec;
+        })
+        .key(function(d){
+            return d.traj_tID;
+        })
+        .entries(dataset_traj);
+        
+
+    var filt = nestedData.filter(function(d){
+        return d.key == 0;
+      })
+    console.log("filtering test: should be species 0");
+    console.log(filt);
+    // Update data
+    // Select all of the grouped elements and update the data
+    var selectGroups = svg.selectAll("g.specGroups")
+        .data(nestedData)
+
+
+
+    // Select all the lines and transition to new positions
+    selectGroups.selectAll("path.traj").data(function(d){
+            return (d.values)
+            })
+            .transition()
+            .attr("fill", "none")
+            .attr("d", function(d) { return valueLine(d.values)})
+            .attr("class", "traj");
+        // .transition()
+        // .attr("d", function(d){
+        // return valueLine(d.values)
+        // });
+
 }
 
 

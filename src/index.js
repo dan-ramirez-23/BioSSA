@@ -4,9 +4,10 @@ var i;
 var speciesList = ["None"];
 var stoichMatrix = [];
 var icList = [];
+// currentConcList is a 2-D array, dim-1: trajectory ID, dim-2: species conc
 var currentConcList = [];
 //trajectory is a 3D array, dim-1(size 1 by default): trajectory ID , dim-2: time, dim-3: species
-var trajectory = [];
+//var trajectory = [];
 // times is a 2D array, dim-1 trajectory ID, dim-2 time
 var times = [];
 // propList is a 2D array, dim-1 trajectory ID, dim-2 species
@@ -19,6 +20,7 @@ var xScale, yScale, xScale_exp, yScale_exp, xScale_rxnSelect, yScale_rxnSelect;
 var currTime = [0];
 var numTrajectories = 1;
 var simTime;
+var simRunning = false;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
@@ -61,6 +63,7 @@ $("#add-species").click(function () {
 $("#confirm-species").click(function() {
     //update species list
     updateSpecies();
+    updateIC();
 });
 
 
@@ -92,6 +95,24 @@ function updateSpecies() {
         });
     })
 
+}
+
+// update initial conditions. later, when parameters are load
+function updateIC() {
+    icList = [];
+    speciesList.forEach(species => {
+        if(species != "None") {
+            var speciesIC = $(".species[value="+species+"]").parent().parent().find(".species_ic").val();
+            icList.push(parseFloat(speciesIC));
+        }
+    });
+    for(let i = 0; i < numTrajectories; i++) {
+        currentConcList[i] = [...icList];
+        console.log("currentConc updated for "+i)
+        console.log(currentConcList)
+    }
+
+    
 }
 
 // delete a row of the species table to remove a species
@@ -229,8 +250,13 @@ function checkReactions() {
 
 // load parameters into the model, update display
 $("#params-load").click(function () {
+    // record max sim time, # trajectories
+    simTime = $('input[name="time"]').val();
+    numTrajectories = $('input[name="nmodels"]').val();
+
     // update species just in case
     updateSpecies();
+    updateIC();
     // update stoichiometry matrix
     updateStoichMatrix();
     // update initial state display
@@ -249,8 +275,7 @@ $("#params-load").click(function () {
     // create/reset rxn_log
     setupRxnLog();
 
-    // record max sim time
-    simTime = $('input[name="time"]').val();
+
 
     // update trajectory data
     updateTrajectoryData(currTime);
@@ -264,29 +289,35 @@ function updateTrajectoryData(currTime) {
     // initialize trajectories if time==0
     if(currTime[0] == 0) {
         for(let i = 0; i < numTrajectories; i++) { 
-            trajectory[i] = []
+            //trajectory[i] = []
             times[i] = []
         }
+
+
+        //traj_time = [0,0,0]
+        //traj_conc = [1,0,0]
+        //traj_spec = [0,1,2]
+        //traj_tID = [-1,-1,-1]
     }
 
     // update trajectories
     for(let i = 0; i < numTrajectories; i++) {       
-        trajectory[i].push(currentConcList[i]);
+        //trajectory[i].push(currentConcList[i]);
         times[i].push(currTime);
     }
 }
 
 function displayIC() {
     var icMatrix = '<h5>Initial State X</h5> \n$$\\begin{bmatrix}\n';
-    icList = [];
+    //icList = [];
     speciesList.forEach(species => {
         if(species != "None") {
             var speciesIC = $(".species[value="+species+"]").parent().parent().find(".species_ic").val();
             icMatrix += '\\text{'+species+'} = '+speciesIC+' \\\\\n';
-            icList.push(parseFloat(speciesIC));
+            //icList.push(parseFloat(speciesIC));
         }
     });
-    currentConcList[0] = [...icList];
+    //currentConcList[0] = [...icList];
     icMatrix += '\\end{bmatrix}$$';
     $("#icDisplay").empty();
     $("#icDisplay").append(icMatrix);
@@ -398,7 +429,9 @@ function transpose(matrix) {
 
 
 function updatePropList(trajID) {
-    formalPropList = [];
+    if(trajID == 0) {
+        formalPropList = [];
+    }
     propList[trajID] = [];
     // iterate over each reaction
     $(".rxntable tr").each( function() {
@@ -451,6 +484,18 @@ $("#sim-step").click(function() {
     simStep();
 })
 
+// on go/stop: run simStep at an interval
+// TODO: add a parameter disabling some of the visuals lol
+let timer;
+$("#sim-toggle").click(function() {
+    // simRunning = !simRunning
+
+    
+    // while(simRunning & Math.max(...currTime) < simTime) {
+    //     timer = setInterval(simStep, 5000)
+    // }
+})
+
 
 function addvector(a,b){
     return a.map((e,i) => parseFloat(e) + parseFloat(b[i]));
@@ -459,17 +504,22 @@ function addvector(a,b){
 function simStep() {
 
 
+    
     // store previous state to track single trajectory
-    var prevConcList = currentConcList[0];
+    var prevConcList = [...currentConcList[0]];
 
     // loop over each reaction trajectory
-    for(let i = 0; i < numTrajectories; i++) {
+    for(let x = 0; x < numTrajectories; x++) {
+
+        //
+        updatePropList(x);
         // obtain reaction time interval
         // generate a random number
         var rand = Math.random();
-        var sum = propList[i].reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+        temp = [...propList[x]]
+        var sum = temp.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
         var tau = -1*Math.log((1-rand)) / sum;
-        currTime[i] += tau;
+        currTime[x] += tau;
 
         // select a reaction
         rand2 = Math.random();
@@ -477,7 +527,7 @@ function simStep() {
 
         var rxn = 0;
         var cumsum = 0;
-        for(let prop of propList[i]) {
+        for(let prop of propList[x]) {
             cumsum += parseFloat(prop);
             if(cumsum >= randRxn) {
                 break;
@@ -487,10 +537,10 @@ function simStep() {
 
         // compute new system state
         var rxnVector = stoichMatrix[rxn];
-        currentConcList[i] = addvector(currentConcList[i],rxnVector);
+        currentConcList[x] = addvector(currentConcList[x],rxnVector);
         //[...currentConcList[i].map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
 
-        if(i == 0) {
+        if(x == 0) {
             // update plots in the case of single trajectory simulation
             // update waiting time plot display
             displayWaitingUnif(rand);
@@ -507,8 +557,7 @@ function simStep() {
             displayPropMatrix();
         }
 
-        //
-        updatePropList(i);
+        
 
     }
 
@@ -1075,16 +1124,30 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 // Generate the initial trajectory data
 // mock start data for multiple trajectories
-var traj_time = [0,0,0,3,3,3,0,0,0,2,2,2]
-var traj_conc = [1,0,0,0,1,10,1,0,0,0,1,5]
-var traj_spec = [0,1,2,0,1,2,0,1,2,0,1,2]
-var traj_tID = [0,0,0,0,0,0,1,1,1,1,1,1]
+// var traj_time = [0,0,0,3,3,3,0,0,0,2,2,2]
+// var traj_conc = [1,0,0,0,1,10,1,0,0,0,1,5]
+// var traj_spec = [0,1,2,0,1,2,0,1,2,0,1,2]
+// var traj_tID = [0,0,0,0,0,0,1,1,1,1,1,1]
 
 // mock start data for one trajectory
 // var traj_time = [0,0,0,3,3,3]
 // var traj_conc = [1,0,0,0,1,10]
 // var traj_spec = [0,1,2,0,1,2]
 // var traj_tID = [0,0,0,0,0,0]
+
+// mock start data for one trajectory, only start points
+var traj_time = [0,0,0]
+var traj_conc = [1,0,0]
+var traj_spec = [0,1,2]
+var traj_tID = [0,0,0]
+
+// with nothing
+// var traj_time = []
+// var traj_conc = []
+// var traj_spec = []
+// var traj_tID = []
+
+
 
 // Combine data into objects
 var dataset_traj = []
@@ -1164,12 +1227,19 @@ function drawTrajectoryDisplay() {
         .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); // color scale
 
 
-    var specGroups = svg.selectAll(".specGroups")
+    // Define the line
+    var valueLine = d3.line()
+        .x(function(d) { return xScale_traj(d.traj_time); })
+        .y(function(d) { return yScale_traj(+d.traj_conc); })
+ 
+
+    // the old way, no keys
+     var specGroups = svg.selectAll(".specGroup")
         .data(nestedData)
         .enter()
         .append("g")
         .attr("stroke", function(d) { return color(d.key)})
-        .attr("class", function(d) {return "specGroup-"+d.key})
+        .attr("class", function(d) {return "specGroup"})
 
     var paths = specGroups.selectAll(".traj")
         .data(function(d){ 
@@ -1178,12 +1248,8 @@ function drawTrajectoryDisplay() {
         .enter()
         .append("path");
     paths.attr("fill", "none")
-        .attr("d", function(d) { return d3.line()
-            .x(function(d) { return xScale_traj(d.traj_time); })
-            .y(function(d) { return yScale_traj(d.traj_conc); })
-            (d.values)})
+        .attr("d", function(d) { return valueLine(d.values)})
         .attr("class", "traj")
-              //.attr("class", function(d){ return "traj traj-" + spec; })
 
 
 }
@@ -1199,7 +1265,7 @@ function updateTrajDisplay(currTime) {
     // loop over trajectories to update data
     for(let i = 0; i < numTrajectories; i++) {
         new_time = Array(numSpecies).fill(currTime[i]);
-        new_conc = currentConcList[i];
+        new_conc = [...currentConcList[i]];
         new_spec = [...Array(numSpecies).keys()];
         new_tID = Array(numSpecies).fill(i);
 
@@ -1258,7 +1324,6 @@ function updateTrajDisplay(currTime) {
         .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
 
 
-
     // Nest the data by species
     var nestedData = d3.nest()
         .key(function(d){
@@ -1270,30 +1335,31 @@ function updateTrajDisplay(currTime) {
         .entries(dataset_traj);
         
 
-    var filt = nestedData.filter(function(d){
-        return d.key == 0;
-      })
-    console.log("filtering test: should be species 0");
-    console.log(filt);
+
     // Update data
     // Select all of the grouped elements and update the data
-    var selectGroups = svg.selectAll("g.specGroups")
+    var selectGroups = svg.selectAll("g.specGroup")
         .data(nestedData)
 
-
+    // console.log("selectGroups")
+    // console.log(selectGroups)
 
     // Select all the lines and transition to new positions
-    selectGroups.selectAll("path.traj").data(function(d){
+    lines = selectGroups.selectAll(".traj_new").data(function(d){
             return (d.values)
-            })
-            .transition()
-            .attr("fill", "none")
+            }).attr("d", function(d) { return valueLine(d.values)})
+
+    //lines.exit().remove()
+    lines.enter()
+            .append("path")
+            .attr("fill","none")
+            .attr("class","traj_new")
             .attr("d", function(d) { return valueLine(d.values)})
-            .attr("class", "traj");
-        // .transition()
-        // .attr("d", function(d){
-        // return valueLine(d.values)
-        // });
+            .transition()
+    
+    
+
+
 
 }
 

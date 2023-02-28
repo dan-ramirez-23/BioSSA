@@ -137,6 +137,7 @@ a {
 .param-all-input-container {
   display: flex;
   flex-direction: row;
+  
 }
 
 .param-input {
@@ -147,7 +148,7 @@ a {
 }
 
 .param-input-field {
-  max-width: 100px;
+  max-width: 50px;
 }
 
 h3 {
@@ -172,3 +173,25 @@ h5 {
 #rxn-add-container {
   max-width: 60px;
 }
+
+mjx-container {
+  margin: 0px;
+}
+
+#waiting-container {
+  margin:8px;
+}
+
+#waiting-exp-container {
+  margin:8px;
+}
+
+#curr-state-container {
+  margin-left: 30px;
+  margin-right: 30px;
+}
+
+#time-summary-container {
+  padding-top:40px;
+}
+

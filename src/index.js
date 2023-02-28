@@ -10,7 +10,7 @@ var currentConcList = [];
 //var trajectory = [];
 // times is a 2D array, dim-1 trajectory ID, dim-2 time
 var times = [];
-// propList is a 2D array, dim-1 trajectory ID, dim-2 species
+// propList is a 2D array, dim-1 trajectory ID, dim-2 reactions
 var propList = [];
 propList[0] = [0.2, 0, 0, 0];
 var rxnCount;
@@ -122,7 +122,7 @@ $(".speciestable").on('click', '.rm-species', function () {
 
 
 // add one reactant to a reaction in the rxn table
-$(".add-reactant").click(function () {
+$(".rxntable").on('click', '.add-reactant', function () {
     var newDropdown = '<td>+</td><td><select class="reactant-select"></select></td>';
     $(this).parent().last().before(newDropdown);
     updateSpecies();
@@ -130,7 +130,7 @@ $(".add-reactant").click(function () {
 
 
 // add one product to a reaction in the rxn table
-$(".add-product").click(function () {
+$(".rxntable").on('click', '.add-product', function () {
     var newDropdown = '<td>+</td><td><select class="product-select"></select></td>';
     $(this).parent().last().before(newDropdown);
     updateSpecies();
@@ -154,12 +154,13 @@ $("#add-rxn").click(function() {
     newRow +='<td class="rxnnum" id="rxnnum'+rxnNum+'">'+rxnNum+'. </td>'; // rxn number
     newRow += '<td><select class="reactant-select"></select></td>'; // first reactant selector
     newRow +='<td><button class="add-reactant">+</button></td>'; // add reactant button 
-    newRow +='<td>&#x2192</td>'; // arrow
+    newRow +='<td>$$\\xrightarrow{\\text{k_'+rxnNum+'}}$$</td>'; // arrow
     newRow +='<td><select class="product-select"></select></td>'; // product selector
     newRow +='<td><button class="add-product">+</button></td>'; // add product button
     newRow += '</tr>';
     $(".rxntable tbody").append(newRow);
     updateSpecies();
+    MathJax.typeset();
 });
 
 
@@ -201,18 +202,23 @@ $("#confirm-rxn").click(function () {
 
     }
 
-
     // Also update stoichiometry matrix & display it
     updateStoichMatrix();
     var newDisplay = getStoichMatrixDisplay();
     $("#stoichDisplay").empty();
     $("#stoichDisplay").append(newDisplay);
 
+    // Update system diagram plot
+    displayDiagram(getGraphJson(speciesList, stoichMatrix))
+
+
     // load MathJax again for it to process the update
     MathJax.typeset();
 });
 
 
+
+// Look over reaction table & remove empty reactions
 function checkReactions() {
     // iterate over each reaction
     $(".rxntable tr").each( function() {
@@ -253,6 +259,7 @@ $("#params-load").click(function () {
     // record max sim time, # trajectories
     simTime = $('input[name="time"]').val();
     numTrajectories = $('input[name="nmodels"]').val();
+    paramVar = parseFloat($('input[name="variance"]').val());
 
     // update species just in case
     updateSpecies();
@@ -260,7 +267,7 @@ $("#params-load").click(function () {
     // update stoichiometry matrix
     updateStoichMatrix();
     // update initial state display
-    displayIC();
+    displayIC(speciesList);
     // update time display
     $("#init-time-readout").val("0");
     $("#rxn-int-readout").val("0");
@@ -280,24 +287,68 @@ $("#params-load").click(function () {
     // update trajectory data
     updateTrajectoryData(currTime);
 
+    // update trajectory display legend
+    updateTrajLegend(speciesList)
+    // update legend in reaction select display
+    updateRxnLegend();
+
 
 });
 
 
+
+    // // if time is 0, reset trajectory data
+    // if(currTime[0] == 0) {
+    //     // get start data
+    //     traj_time = [0,0,0]
+    //     traj_conc = [1,0,0]
+    //     traj_spec = [0,1,2]
+    //     traj_tID = [0,0,0]
+
+
+    //     // Combine data into objects
+    //     dataset_traj = []
+    //     for (var i = 0; i < traj_time.length; i++) {
+    //         dataset_traj.push({
+    //             traj_time: traj_time[i],
+    //             traj_conc: traj_conc[i],
+    //             traj_spec: traj_spec[i],
+    //             traj_tID: traj_tID[i]
+    //     });
+    //     }
+    // }
+
+
+    
+
+
+
 function updateTrajectoryData(currTime) {
 
+    numSpecies = currentConcList[0].length
     // initialize trajectories if time==0
     if(currTime[0] == 0) {
+        dataset_traj = []
+
         for(let i = 0; i < numTrajectories; i++) { 
-            //trajectory[i] = []
+            new_time = Array(numSpecies).fill(currTime[i]);
+            new_conc = [...currentConcList[i]];
+            new_spec = [...Array(numSpecies).keys()];
+            new_tID = Array(numSpecies).fill(i);
             times[i] = []
+
+
+
+            // Combine data into objects
+            for (var j = 0; j < new_time.length; j++) {
+                dataset_traj.push({
+                    traj_time: new_time[j],
+                    traj_conc: new_conc[j],
+                    traj_spec: new_spec[j],
+                    traj_tID: new_tID[j]
+            });
+            }
         }
-
-
-        //traj_time = [0,0,0]
-        //traj_conc = [1,0,0]
-        //traj_spec = [0,1,2]
-        //traj_tID = [-1,-1,-1]
     }
 
     // update trajectories
@@ -307,7 +358,7 @@ function updateTrajectoryData(currTime) {
     }
 }
 
-function displayIC() {
+function displayIC(speciesList) {
     var icMatrix = '<h5>Initial State X</h5> \n$$\\begin{bmatrix}\n';
     //icList = [];
     speciesList.forEach(species => {
@@ -337,6 +388,7 @@ function getRxnPropensity(rxnNum, trajID) {
     
     var k = $(".param-input-field[name="+formalProp+"]").val();
     var actualProp = parseFloat(k);
+    formalProp = "$$" + formalProp
     formalProp += '*';
     
     // get reactants for the rxn
@@ -355,13 +407,20 @@ function getRxnPropensity(rxnNum, trajID) {
         var rctNum = speciesList.findIndex(function(x) {
             return x == rct;
         })-1;
-        formalProp += 'X['+rctNum+']';
+        var tmp = 'X['+rctNum+']'
+        var count = (formalProp.match(/tmp/g) || []).length;
+        if(count == 0) {
+            formalProp += 'X['+rctNum+']';
+        } else {
+            formalProp += 'X['+rctNum+']-'+count;
+        }
+        
 
         // get reactant concentration
         var rctCon = parseFloat(currentConcList[trajID][rctNum]);
         actualProp *= rctCon;
     });
-
+    formalProp +="$$";
 
     return [formalProp, actualProp];
     
@@ -407,6 +466,67 @@ function updateStoichMatrix() {
     });
 }
 
+
+function getReactionInfo() {
+    var rxnInfo = [];
+
+    // iterate over each reaction
+    $(".rxntable tr").each( function() {
+        var arrSize = speciesList.length-1
+        var inputs = new Array(arrSize); for (let i=0; i<arrSize; ++i) inputs[i] = 0;
+        var outputs = new Array(arrSize); for (let i=0; i<arrSize; ++i) outputs[i] = 0;
+        var rxnNo;
+        var reactantList = [];
+        var productList = [];
+
+        rxnNo = parseInt($(this).find("td.rxnnum").text());
+        rxnProp = $(".param-input-field[name=k_"+rxnNo+"]").val();
+        //".param-input-field[name="+k+"]"
+        // update inputs vector: loop over reactants & add to rxnInfo
+        $(this).find("td select.reactant-select").find(":selected").each(function() {
+            if($(this).val() != "None") {
+                var species = $(this).val();
+                var rctNum = speciesList.findIndex(function(x) {
+                    return x==species;
+                })-1;
+                inputs[rctNum] += 1;
+                reactantList.push(species);
+            }  
+        });
+
+        // update outputs vector
+        $(this).find("td select.product-select").find(":selected").each(function() {
+            if($(this).val() != "None") {
+                var species = $(this).val();
+                var rctNum = speciesList.findIndex(function(x) {
+                    return x == species;
+                })-1;
+                outputs[rctNum] += 1;
+                productList.push(species);
+            }  
+        });
+
+        
+        // update rxnInfo accordingly:
+        // inputs are reactants
+        // outputs are products
+            // if no outputs, add "None" to products
+        if(productList.length == 0) {
+            productList.push("None")
+        }
+        
+        rxnInfo.push({
+            rxnNumber: rxnNo,
+            rxnProp: rxnProp,
+            reactants: reactantList,
+            products: productList
+        });
+
+    });
+
+    return(rxnInfo);
+
+}
 
 function getStoichMatrixDisplay() {
     var disp = '<h5>Stoichiometry</h5> \n$$\\begin{bmatrix}\n';;
@@ -476,6 +596,7 @@ function displayPropMatrix() {
     out = getPropMatrixDisplay();
     $("#propensity-display").empty();
     $("#propensity-display").append(out);
+    MathJax.typeset();
 }
 
 
@@ -737,15 +858,15 @@ for (var j = 0; j < x2.length; j++) {
 function drawWaitingUnifDisplay() {
     var w = 250
     var h = 250
-    var padding = 25
+    var padding = {top: 15, bottom: 25, left: 25, right: 5}
 
     xScale = d3.scaleLinear()
                     .domain([d3.min(x, function(d) { return d }), d3.max(x, function(d) { return d })])
-                    .range([padding, w - padding * 2])
+                    .range([padding.left, w - padding.right * 2])
 
     yScale = d3.scaleLinear()
                 .domain([0, 3])
-                .range([h - padding, padding])
+                .range([h - padding.bottom, padding.top])
 
     function mycanvas() {
         var svg = d3.select('svg#waiting-unif-display')
@@ -761,11 +882,11 @@ function drawWaitingUnifDisplay() {
         // Create the axis
         svg.append('g')
             .attr('class', 'axis')
-            .attr('transform', 'translate(0,' + (h - padding) + ')')
+            .attr('transform', 'translate(0,' + (h - padding.bottom) + ')')
             .call(xAxis)
         svg.append('g')
             .attr('class', 'axis')
-            .attr('transform', 'translate(' + padding + ',0)')
+            .attr('transform', 'translate(' + padding.left + ',0)')
             .call(yAxis)
 
         var line = d3.line()
@@ -773,10 +894,10 @@ function drawWaitingUnifDisplay() {
                     .y(function(d) { return yScale(d[1]);});
                     
         svg.append("path")
-        .attr("d", line(dataset_unifdist))
-        .attr("stroke", "white")
-        .attr("fill", "none")
-        .attr("class", "unifdist")
+            .attr("d", line(dataset_unifdist))
+            .attr("stroke", "white")
+            .attr("fill", "none")
+            .attr("class", "unifdist")
         svg.append("path")
             .attr("d",line(dataset_unifsamp))
             .attr("stroke", "red")
@@ -812,7 +933,7 @@ dataset_expsamp= transpose([x2_exp,y2_exp])
 
 // Finally, generate a vertical line at x = tau
 var x2_tau = [0, 0]; 
-var y2_tau = [0, 2]
+var y2_tau = [0, 1]
 
 var dataset_tausamp = []
 dataset_tausamp= transpose([x2_tau,y2_tau])
@@ -823,15 +944,15 @@ dataset_tausamp= transpose([x2_tau,y2_tau])
 function drawWaitingExpDisplay() {
     var w = 250
     var h = 250
-    var padding = 25
+    var padding = {top: 15, bottom: 25, left: 25, right: 5}
 
     xScale_exp = d3.scaleLinear()
                     .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
-                    .range([padding, w - padding * 2])
+                    .range([padding.left, w - padding.right * 2])
 
     yScale_exp = d3.scaleLinear()
                 .domain([0, 1])
-                .range([h - padding, padding])
+                .range([h - padding.bottom, padding.top])
 
     function mycanvas() {
         var svg = d3.select('svg#waiting-exp-display')
@@ -848,11 +969,11 @@ function drawWaitingExpDisplay() {
         // Create the axis
         svg.append('g')
             .attr('class', 'x axis')
-            .attr('transform', 'translate(0,' + (h - padding) + ')')
+            .attr('transform', 'translate(0,' + (h - padding.bottom) + ')')
             .call(xAxis_exp)
         svg.append('g')
             .attr('class', 'y axis')
-            .attr('transform', 'translate(' + padding + ',0)')
+            .attr('transform', 'translate(' + padding.left + ',0)')
             .call(yAxis_exp)
 
         var line = d3.line()
@@ -897,6 +1018,9 @@ function expCDF(lambda, x) {
 // set up uniform distribution visual
 function displayWaitingExp(rand, tau) {
 
+
+    var padding = {top: 15, bottom: 25, left: 25, right: 5}
+
     // Generate data from an exponential distribution with parameter sum(propList)
     // For the exponential distribution use 4x variance to set the x domain. Variance is 1/lambda
     lambda = d3.sum(propList[0]);
@@ -924,15 +1048,14 @@ function displayWaitingExp(rand, tau) {
 
     var w = 250
     var h = 250
-    var padding = 25
 
     xScale_exp = d3.scaleLinear()
                     .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
-                    .range([padding, w - padding * 2])
+                    .range([padding.left, w - padding.right * 2])
 
     yScale_exp = d3.scaleLinear()
                 .domain([0, 1])
-                .range([h - padding, padding])
+                .range([h - padding.bottom, padding.top])
 
 
     // Define the axis
@@ -980,7 +1103,7 @@ var y_rxnSelect = [0.2, 0, 0, 0]
 var rxnNum_rxnSelect = ["k_1", "k_2", "k_3", "k_4"]
 var dataset_rxnSelect = []
 
-string_csv = 'group,k1,k2,k3,k4\nPropensity,'+y_rxnSelect.reduce((acc, add) => acc += ","+add)+'\nSample,0.1,0,0,0';
+string_csv = 'group,k_1,k_2,k_3,k_4\nPropensity,'+y_rxnSelect.reduce((acc, add) => acc += ","+add)+'\nSample,0.1,0,0,0';
 dataset_rxnSelect = d3.csvParse(string_csv);
 
 var subgroups = dataset_rxnSelect.columns.slice(1) //rxnNum_rxnSelect
@@ -994,15 +1117,15 @@ function drawRxnSelectDisplay() {
 
     var w = 250
     var h = 250
-    var padding = 25
+    var padding = {top: 15, bottom: 25, left: 30, right: 35}
 
     xScale_rxnSelect = d3.scaleBand()
                     .domain(["Propensity","Sample"])
-                    .range([padding, w - padding * 2])
+                    .range([padding.left, w - padding.right * 2])
 
     yScale_rxnSelect = d3.scaleLinear()
                 .domain([0, 1.2*d3.sum(y_rxnSelect)])
-                .range([h - padding, padding])
+                .range([h - padding.bottom, padding.top])
 
     var svg = d3.select('svg#rxn-select-display')
         .attr('width', w)
@@ -1018,11 +1141,11 @@ function drawRxnSelectDisplay() {
     // Create the axis
     svg.append('g')
         .attr('class', 'x axis')
-        .attr('transform', 'translate(0,' + (h - padding) + ')')
+        .attr('transform', 'translate(0,' + (h - padding.bottom) + ')')
         .call(d3.axisBottom(xScale_rxnSelect).tickSizeOuter(0));
     svg.append('g')
         .attr('class', 'y axis')
-        .attr('transform', 'translate(' + padding + ',0)')
+        .attr('transform', 'translate(' + padding.left + ',0)')
         .call(d3.axisLeft(yScale_rxnSelect));
 
 
@@ -1046,28 +1169,33 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
     // Create new data string
-    string_csv = 'group,k1,k2,k3,k4\nPropensity,'+propList[0].reduce((acc, add) => acc += ","+add)+
+    string_csv = 'group,k_1,k_2,k_3,k_4\nPropensity,'+propList[0].reduce((acc, add) => acc += ","+add)+
         '\nSample,'+sampList.reduce((acc, add) => acc += ","+add);
     dataset_rxnSelect = d3.csvParse(string_csv);
 
     // Update plot
     var w = 250
     var h = 250
-    var padding = 25
+    var padding = {top: 15, bottom: 25, left: 30, right: 35}
 
     xScale_rxnSelect = d3.scaleBand()
                     .domain(["Propensity","Sample"])
-                    .range([padding, w - padding * 2])
+                    .range([padding.left, w - padding.right * 2])
+                    .paddingInner(0.05);
 
     yScale_rxnSelect = d3.scaleLinear()
                 .domain([0, 1.2*d3.sum(propList[0])])
-                .range([h - padding, padding])
+                .range([h - padding.bottom, padding.top])
 
 
+
+
+    console.log("rxnNum_rxnSelect:")
+    console.log(rxnNum_rxnSelect)
     // color palette = one color per subgroup
     var color = d3.scaleOrdinal()
-    .domain(rxnNum_rxnSelect)
-    .range(["#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"])
+        .domain(rxnNum_rxnSelect)
+        .range(["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000"])
 
     //stack the data? --> stack per subgroup
     //var stackedData = d3.stack()
@@ -1099,7 +1227,7 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
             .transition()
             .attr("x", function(d){ return xScale_rxnSelect(d.data["group"]); })
             .attr("y", function(d){ return yScale_rxnSelect(d[1]); })
-            .attr("height", function(d){ return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); });
+            .attr("height", function(d){ return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); })
 
         bar.enter().append("rect")
             .attr("class", function(d){ return "bar bar-" + key; })
@@ -1107,15 +1235,58 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
             .attr("y", function(d){ return yScale_rxnSelect(d[1]); })
             .attr("height", function(d){ return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); })
             .attr("width", xScale_rxnSelect.bandwidth())
-            .attr("fill", function(d){ return color(key); })
+            .attr("fill", function(d){ 
+                console.log("in barchart, key:")
+                console.log(key)
+                console.log("color for key:")
+                console.log(color(key))
+                return color(key); })
 
-    });    
-        
+    });            
 
 
 }
 
 
+
+
+function updateRxnLegend() {
+    var w = 250
+
+    // Select plot
+    var svg = d3.select('#rxn-select-display');
+
+    var numRxns = parseInt($(".rxntable tr td.rxnnum").last().html());
+    var formalProps = [...Array(numRxns).keys()];
+    formalProps = formalProps.map(i => "k_"+parseInt(i+1));
+
+
+    var subgroups = dataset_rxnSelect.columns.slice(1)
+
+    console.log("subgroups:")
+    console.log(subgroups)
+
+    console.log("formalProps:")
+    console.log(formalProps)
+
+    // Define the color scale
+    const color = d3.scaleOrdinal()
+        .domain(formalProps)
+        .range(["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000"])
+
+    // Define legend
+    var legend = d3.legendColor()
+        .labelFormat(d3.format(".2f"))
+        .scale(color)
+        .labels(formalProps)
+
+    svg.append('g')
+        .attr("transform","translate("+w*0.75+", 80)")
+        .attr("class", "legend")
+        .call(legend);
+
+    svg.legends = [];
+}
 
 
 
@@ -1176,6 +1347,7 @@ function drawTrajectoryDisplay() {
     var w = 500
     var h = 250
     var padding = 25
+    var padding = {top: 15, bottom: 25, left: 30, right: 50}
     var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))]; 
 
 
@@ -1203,23 +1375,23 @@ function drawTrajectoryDisplay() {
 
     xScale_traj = d3.scaleLinear()
                     .domain([d3.min(dataset_traj, function(d) { return d.traj_time }), d3.max(dataset_traj, function(d) { return d.traj_time })])
-                    .range([padding, w - padding * 2])
+                    .range([padding.left, w - padding.right * 2])
     var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
     // Create the x-axis
     svg.append('g')
         .attr('class', 'x axis')
-        .attr('transform', 'translate(0,' + (h - padding) + ')')
+        .attr('transform', 'translate(0,' + (h - padding.bottom) + ')')
         .call(xAxis_traj)
 
     // Create y-axis
     yScale_traj = d3.scaleLinear()
                 .domain([d3.min(dataset_traj, function(d) { return d.traj_conc }), d3.max(dataset_traj, function(d) { return d.traj_conc })])
-                .range([h - padding, padding])
+                .range([h - padding.bottom, padding.top])
     var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
 
     svg.append('g')
         .attr('class', 'y axis')
-        .attr('transform', 'translate(' + padding + ',0)')
+        .attr('transform', 'translate(' + padding.left + ',0)')
         .call(yAxis_traj)
 
     // Define the color scale
@@ -1252,8 +1424,61 @@ function drawTrajectoryDisplay() {
         .attr("class", "traj")
 
 
+    // define legend
+    // var legend = d3.legendColor()
+    //     .labelFormat(d3.format(".2f"))
+    //     //.useClass(true)
+    //     .scale(color);
+
+    // svg.append('g')
+    //     .attr("transform","translate("+w*0.9+", 80)")
+    //     .attr("class", "legend")
+    //     .call(legend);
+
+
+
 }
 
+
+
+function updateTrajLegend(speciesList) {
+
+    var w = 500
+    var h = 250
+
+    var legendSpecies = [...speciesList]
+    legendSpecies.shift();
+    console.log("legendSpecies:")
+    console.log(legendSpecies)
+
+
+    // Select plot
+    var svg = d3.select('#traj-display');
+
+    // Define the color scale
+    const color = d3.scaleOrdinal()
+        .domain(legendSpecies)
+        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
+
+
+    var legend = d3.legendColor()
+        .labelFormat(d3.format(".2f"))
+        //.useClass(true)
+        .scale(color)
+        .labels(legendSpecies)
+        .on("cellclick", function(d){
+            console.log("Clicked on color " + color(d));
+            currentOpacity = d3.selectAll("g[stroke='"+color(d)+"']").style("opacity")
+            test = svg.selectAll("g[stroke='"+color(d)+"']").transition().style("opacity", currentOpacity == 1 ? 0:1);
+        });;
+
+    svg.append('g')
+        .attr("transform","translate("+w*0.8+", 80)")
+        .attr("class", "legend")
+        .call(legend);
+
+    svg.legends = [];
+}
 
 
 // Update trajectory display
@@ -1287,16 +1512,23 @@ function updateTrajDisplay(currTime) {
     var w = 500
     var h = 250
     var padding = 25
+    var padding = {top: 15, bottom: 25, left: 30, right: 50}
 
 
 
     // Select plot
-    var svg = d3.select('#traj-container');
+    var svg = d3.select('#traj-display');
+
+
+    // Define the color scale
+    const color = d3.scaleOrdinal()
+        .domain(speciesIDs)
+        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
 
     // Update axes
     xScale_traj = d3.scaleLinear()
         .domain([d3.min(dataset_traj, function(d) { return d.traj_time }), d3.max(dataset_traj, function(d) { return d.traj_time })])
-        .range([padding, w - padding * 2])
+        .range([padding.left, w - padding.right * 2])
     var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
     svg.selectAll(".x.axis")
         .transition()  
@@ -1304,7 +1536,7 @@ function updateTrajDisplay(currTime) {
 
     yScale_traj = d3.scaleLinear()
         .domain([d3.min(dataset_traj, function(d) { return d.traj_conc }), d3.max(dataset_traj, function(d) { return d.traj_conc })])
-        .range([h - padding, padding])
+        .range([h - padding.bottom, padding.top])
     var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
     svg.selectAll(".y.axis")
         .transition()
@@ -1319,10 +1551,6 @@ function updateTrajDisplay(currTime) {
 
 
    
-    // Define the color scale
-    const color = d3.scaleOrdinal()
-        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
-
 
     // Nest the data by species
     var nestedData = d3.nest()
@@ -1340,9 +1568,13 @@ function updateTrajDisplay(currTime) {
     // Select all of the grouped elements and update the data
     var selectGroups = svg.selectAll("g.specGroup")
         .data(nestedData)
+        
+    selectGroups
+        .enter()
+        .append("g")
+        .attr("stroke", function(d) { return color(d.key)})
+        .attr("class", function(d) {return "specGroup"})
 
-    // console.log("selectGroups")
-    // console.log(selectGroups)
 
     // Select all the lines and transition to new positions
     lines = selectGroups.selectAll(".traj_new").data(function(d){
@@ -1358,11 +1590,150 @@ function updateTrajDisplay(currTime) {
             .transition()
     
     
-
+    // update legend - frustratingly, the plot overwrites it if you dont
+    //updateTrajLegend(speciesList);
 
 
 }
 
+
+
+
+function drawEnsembleDisplay() {
+    var w = 300
+    var h = 300
+    var padding = {top: 15, bottom: 25, left: 30, right: 50}
+    var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))]; 
+
+
+    var svg = d3.select('svg#ensemble-display')
+                .attr('width', w)
+                .attr('height', h)
+        svg.append('rect')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('fill', 'lightgrey')
+
+
+    // Nest the data by species?
+    // var nestedData = d3.nest()
+    //     .key(function(d){
+    //         return d.traj_spec;
+    //     })
+    //     .key(function(d){
+    //         return d.traj_tID;
+    //     })
+    //     .entries(dataset_traj);
+
+
+
+    // Build X scales and axis:
+    var x = d3.scaleBand()
+        .range([ 0, w ])
+        .domain(myGroups)
+        .padding(0.05);
+    svg.append("g")
+        .style("font-size", 15)
+        .attr("transform", "translate(0," + h + ")")
+        .call(d3.axisBottom(x).tickSize(0))
+        .select(".domain").remove()
+
+    // Build Y scales and axis:
+    var y = d3.scaleBand()
+        .range([ h, 0 ])
+        .domain(myVars)
+        .padding(0.05);
+    svg.append("g")
+        .style("font-size", 15)
+        .call(d3.axisLeft(y).tickSize(0))
+        .select(".domain").remove()
+
+}
+
+
+
+function getGraphJson(speciesList, stoichMatrix) {
+    var nodes = []
+    // first, create a node for every species
+    for(spec in speciesList) {
+        //out += '{"id": "'+speciesList[spec]+'"},';
+        nodes.push({
+            id: spec,
+            label: speciesList[spec]
+        });
+    }
+
+    var rxnInfo = getReactionInfo();
+    var edges = []
+
+    // rescale widths to a range of 1-max
+    var maxWidth = 5;
+    var props = rxnInfo.map(x => parseFloat(x.rxnProp));
+    //var sum = props.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+    //var mean = (sum / props.length);
+    var max = Math.max(...props);
+    //props = props.map(item => item - mean);
+    props = props.map(item => Math.log10(item+1));
+    props = props.map(item => item * maxWidth);
+    
+    // loop over each reaction. Find negative coefficients (reactants) & positive coefficients (products), then connect each one with an edge
+    for(r in [...Array(stoichMatrix.length).keys()]) {
+
+        reactants = rxnInfo[r].reactants
+        products = rxnInfo[r].products
+        edgeLabel = 'k_'+rxnInfo[r].rxnNumber
+        var w = props[r];
+
+        // add an edge connecting reactants to products
+        for(rc in reactants) {
+            for(p in products) {
+                //out += '{ "from": "' + speciesList[parseInt(reactants[r])+1] + '",\n "to": "' + speciesList[parseInt(products[p])+1] + '"},'
+                var rID = speciesList.findIndex(function(x) { return x == reactants[rc]; });
+                var pID = speciesList.findIndex(function(x) { return x == products[p]; });
+                
+                edges.push({
+                    from: rID,
+                    to: pID,
+                    label: edgeLabel,
+                    width: w,
+                    arrows: {
+                        to: {
+                          enabled: true,
+                          type: "arrow",
+                        },
+                      },
+                });
+            }
+        }
+
+    }
+    
+    var out = {
+        nodes: nodes,
+        edges: edges
+    }
+    return(out)
+
+}
+
+
+function displayDiagram(json) {
+    
+    // create a network
+    var container = document.getElementById("diagram-container");
+    var options = {width: '400px',height: '250px'};
+    var network = new vis.Network(container, json, options);
+}
+
+
+function getRxnInfo() {
+    var rxnInfo;
+
+
+    return rxnInfo;
+
+
+}
 
 
 
@@ -1372,3 +1743,4 @@ drawWaitingUnifDisplay();
 drawWaitingExpDisplay();
 drawRxnSelectDisplay();
 drawTrajectoryDisplay();
+drawEnsembleDisplay();

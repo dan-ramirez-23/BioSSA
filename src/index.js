@@ -608,13 +608,18 @@ $("#sim-step").click(function() {
 // on go/stop: run simStep at an interval
 // TODO: add a parameter disabling some of the visuals lol
 let timer;
+let run;
 $("#sim-toggle").click(function() {
-    // simRunning = !simRunning
+    if(simRunning == false) {
+        simRunning = true;
+        //$(this).attr('button-style')
+        run = setInterval(simStep, 250);
 
+    } else {
+        simRunning = false;
+        clearInterval(run);
+    }
     
-    // while(simRunning & Math.max(...currTime) < simTime) {
-    //     timer = setInterval(simStep, 5000)
-    // }
 })
 
 
@@ -856,8 +861,8 @@ for (var j = 0; j < x2.length; j++) {
 
 
 function drawWaitingUnifDisplay() {
-    var w = 250
-    var h = 250
+    var w = 200
+    var h = 200
     var padding = {top: 15, bottom: 25, left: 25, right: 5}
 
     xScale = d3.scaleLinear()
@@ -942,8 +947,8 @@ dataset_tausamp= transpose([x2_tau,y2_tau])
 
 
 function drawWaitingExpDisplay() {
-    var w = 250
-    var h = 250
+    var w = 200
+    var h = 200
     var padding = {top: 15, bottom: 25, left: 25, right: 5}
 
     xScale_exp = d3.scaleLinear()
@@ -1046,8 +1051,8 @@ function displayWaitingExp(rand, tau) {
     dataset_tausamp = []
     dataset_tausamp= transpose([x2_tau,y2_tau])
 
-    var w = 250
-    var h = 250
+    var w = 200
+    var h = 200
 
     xScale_exp = d3.scaleLinear()
                     .domain([d3.min(x_exp, function(d) { return d }), d3.max(x_exp, function(d) { return d })])
@@ -1115,8 +1120,8 @@ var groups = d3.map(dataset_rxnSelect, function(d){return(d.group)}).keys()
 
 function drawRxnSelectDisplay() {
 
-    var w = 250
-    var h = 250
+    var w = 200
+    var h = 200
     var padding = {top: 15, bottom: 25, left: 30, right: 35}
 
     xScale_rxnSelect = d3.scaleBand()
@@ -1174,8 +1179,8 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
     dataset_rxnSelect = d3.csvParse(string_csv);
 
     // Update plot
-    var w = 250
-    var h = 250
+    var w = 200
+    var h = 200
     var padding = {top: 15, bottom: 25, left: 30, right: 35}
 
     xScale_rxnSelect = d3.scaleBand()
@@ -1251,7 +1256,7 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
 function updateRxnLegend() {
-    var w = 250
+    var w = 200
 
     // Select plot
     var svg = d3.select('#rxn-select-display');
@@ -1669,10 +1674,7 @@ function getGraphJson(speciesList, stoichMatrix) {
     // rescale widths to a range of 1-max
     var maxWidth = 5;
     var props = rxnInfo.map(x => parseFloat(x.rxnProp));
-    //var sum = props.reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
-    //var mean = (sum / props.length);
     var max = Math.max(...props);
-    //props = props.map(item => item - mean);
     props = props.map(item => Math.log10(item+1));
     props = props.map(item => item * maxWidth);
     
@@ -1681,7 +1683,7 @@ function getGraphJson(speciesList, stoichMatrix) {
 
         reactants = rxnInfo[r].reactants
         products = rxnInfo[r].products
-        edgeLabel = 'k_'+rxnInfo[r].rxnNumber
+        edgeLabel = `k${rxnInfo[r].rxnNumber} = ${rxnInfo[r].rxnProp}`
         var w = props[r];
 
         // add an edge connecting reactants to products
@@ -1694,7 +1696,7 @@ function getGraphJson(speciesList, stoichMatrix) {
                 edges.push({
                     from: rID,
                     to: pID,
-                    label: edgeLabel,
+                    title: edgeLabel,
                     width: w,
                     arrows: {
                         to: {
@@ -1702,6 +1704,9 @@ function getGraphJson(speciesList, stoichMatrix) {
                           type: "arrow",
                         },
                       },
+                    font: {
+                        align: "top",
+                    },
                 });
             }
         }

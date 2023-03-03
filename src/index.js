@@ -272,9 +272,12 @@ $("#params-load").click(function () {
     $("#init-time-readout").val("0");
     $("#rxn-int-readout").val("0");
     $("#curr-time-readout").val("0");
+
     // update propensity matrix
+    rxnInfo = getReactionInfo();
+    updateFormalPropList(rxnInfo); 
     for(let i = 0; i < numTrajectories; i++) {
-        updatePropList(i);
+        updatePropList(i, rxnInfo);
         currTime[i] = 0;
     }
     // display prop matrix for first trajectory
@@ -382,49 +385,34 @@ function displayIC(speciesList) {
 
 
 // get formal & actual propensity function for one reaction
-function getRxnPropensity(rxnNum, trajID) {
-    // allocate output vars
-    var formalProp = 'k_'+rxnNum;
-    
-    var k = $(".param-input-field[name="+formalProp+"]").val();
-    var actualProp = parseFloat(k);
-    formalProp = "$$" + formalProp
-    formalProp += '*';
-    
-    // get reactants for the rxn
-    var reactants = [];
-    query='.rxntable tr td#rxnnum'+rxnNum;
-    $(query).parent().find("select.reactant-select").find(":selected").each(function() {
-        if($(this).val() != "None") {
-            reactants.push($(this).val());
-        }  
-    });
-    
+// todo: rewrite using rxnInfo instead?
+function getRxnPropensity(rxn, trajID) {
 
-    // cat together formal propensity, while computing actual
-    reactants.forEach(rct => {
+
+    var rxnNum = rxn.rxnNum;
+    var reactants = rxn.reactants;
+    var actualProp = rxn.rxnProp;
+
+    // compute propensity
+    let uniqueReactants = [...new Set(reactants)]
+    uniqueReactants.forEach(rct => {
         // get reactant index in species list
         var rctNum = speciesList.findIndex(function(x) {
             return x == rct;
         })-1;
-        var tmp = 'X['+rctNum+']'
-        var count = (formalProp.match(/tmp/g) || []).length;
-        if(count == 0) {
-            formalProp += 'X['+rctNum+']';
-        } else {
-            formalProp += 'X['+rctNum+']-'+count;
-        }
-        
+        var count = reactants.filter((r) => r == rct).length
 
         // get reactant concentration
         var rctCon = parseFloat(currentConcList[trajID][rctNum]);
-        actualProp *= rctCon;
+        for(i in [...Array(count).keys()]) {
+            actualProp *= (rctCon - i);
+        }
+        
     });
-    formalProp +="$$";
-
-    return [formalProp, actualProp];
+    return Math.max(0, actualProp);
     
 }
+
 
 
 function updateStoichMatrix() {
@@ -548,26 +536,73 @@ function transpose(matrix) {
 
 
 
-function updatePropList(trajID) {
-    if(trajID == 0) {
-        formalPropList = [];
-    }
+function updatePropList(trajID, rxnInfo) {
     propList[trajID] = [];
+    var rxnNum;
+
+    rxnInfo.forEach((rxn, i) => {
+        
+        var rxnProps = getRxnPropensity(rxn, trajID);
+        propList[trajID].push(rxnProps);
+
+    });
+
+}
+
+
+
+function updateFormalPropList(rxnInfo) {
+    formalPropList = [];
     // iterate over each reaction
     $(".rxntable tr").each( function() {
         // get rxn number
         var rxnNum = parseInt($(this).find("td.rxnnum").html());
-
-        var rxnProps = getRxnPropensity(rxnNum, trajID);
-        if(trajID == 0) {
-            formalPropList.push(rxnProps[0]);
-        }
-        propList[trajID].push(rxnProps[1]);
-
+        var rxnProps = getRxnFormalPropensity(rxnNum, rxnInfo);
+        formalPropList.push(rxnProps);
         
     });
 
 }
+
+// todo: fix this implementation of multimers
+function getRxnFormalPropensity(rxnNum, rxnInfo) {
+
+    console.log("getting formal prop for rxn "+ rxnNum);
+    // allocate output vars
+    var formalProp = 'k_'+rxnNum;
+    
+    var k = $(".param-input-field[name="+formalProp+"]").val();
+    //var actualProp = parseFloat(k);
+    formalProp = "$$" + formalProp
+    formalProp += '*';
+    
+    // get reactants for the rxn
+    var reactants = rxnInfo[rxnNum-1].reactants
+
+    // cat together formal propensity, while computing actual
+    let uniqueReactants = [...new Set(reactants)]
+    uniqueReactants.forEach(rct => {
+        // get reactant index in species list
+        var rctNum = speciesList.findIndex(function(x) {
+            return x == rct;
+        })-1;
+        var tmp = 'X['+rctNum+']'
+        var count = reactants.filter((r) => r == rct).length
+        if(count == 1) {
+            formalProp += 'X['+rctNum+']';
+        } else if (count == 2) {
+            formalProp += 'X['+rctNum+']'+'(X['+rctNum+']-1)';
+        } else if (count == 3) {
+            formalProp += 'X['+rctNum+']'+'(X['+rctNum+']-1)'+'(X['+rctNum+']-2)';
+        }
+        
+    });
+    formalProp +="$$";
+
+    return formalProp;
+    
+}
+
 
 function getPropMatrixDisplay() {
     
@@ -601,6 +636,7 @@ function displayPropMatrix() {
 
 
 // on step: update all displays for one reaction
+var rxnInfo;
 $("#sim-step").click(function() {
     simStep();
 })
@@ -613,7 +649,7 @@ $("#sim-toggle").click(function() {
     if(simRunning == false) {
         simRunning = true;
         //$(this).attr('button-style')
-        run = setInterval(simStep, 250);
+        run = setInterval(simStep, 25);
 
     } else {
         simRunning = false;
@@ -638,7 +674,7 @@ function simStep() {
     for(let x = 0; x < numTrajectories; x++) {
 
         //
-        updatePropList(x);
+        updatePropList(x, rxnInfo);
         // obtain reaction time interval
         // generate a random number
         var rand = Math.random();
@@ -666,7 +702,7 @@ function simStep() {
         currentConcList[x] = addvector(currentConcList[x],rxnVector);
         //[...currentConcList[i].map((n, i) => parseFloat(n) + parseFloat(rxnVector[i]))];
 
-        if(x == 0) {
+        if(x == 0 && !simRunning) {
             // update plots in the case of single trajectory simulation
             // update waiting time plot display
             displayWaitingUnif(rand);
@@ -756,19 +792,13 @@ function updateTimeDisplay(tau) {
 }
 
 
-function getRxnInterval(trajID) {
-    //pyodide.globals.speciesList = speciesList;
-    //pyodide.globals.propList = propList;
-    //console.log(pyodide.runPython(`
-    //    print propList
-    //`));
-
-    // generate a random number
-    //var rand = Math.random();
-    var sum = propList[trajID].reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
-    var tau = -1*Math.log(rand) / Math.sum;
-    return(tau);
-}
+// function getRxnInterval(trajID) {
+//     // generate a random number
+//     //var rand = Math.random();
+//     var sum = propList[trajID].reduce((partialSum, a) => parseFloat(partialSum) + parseFloat(a), 0);
+//     var tau = -1*Math.log(rand) / sum;
+//     return(tau);
+// }
 
 
 
@@ -1349,8 +1379,8 @@ console.log(dataset_traj);
 
 
 function drawTrajectoryDisplay() {
-    var w = 500
-    var h = 250
+    var w = 800
+    var h = 300
     var padding = 25
     var padding = {top: 15, bottom: 25, left: 30, right: 50}
     var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))]; 
@@ -1448,8 +1478,8 @@ function drawTrajectoryDisplay() {
 
 function updateTrajLegend(speciesList) {
 
-    var w = 500
-    var h = 250
+    var w = 800
+    var h = 300
 
     var legendSpecies = [...speciesList]
     legendSpecies.shift();
@@ -1472,13 +1502,13 @@ function updateTrajLegend(speciesList) {
         .scale(color)
         .labels(legendSpecies)
         .on("cellclick", function(d){
-            console.log("Clicked on color " + color(d));
+            //console.log("Clicked on color " + color(d));
             currentOpacity = d3.selectAll("g[stroke='"+color(d)+"']").style("opacity")
             test = svg.selectAll("g[stroke='"+color(d)+"']").transition().style("opacity", currentOpacity == 1 ? 0:1);
         });;
 
     svg.append('g')
-        .attr("transform","translate("+w*0.8+", 80)")
+        .attr("transform","translate("+w*0.87+", 80)")
         .attr("class", "legend")
         .call(legend);
 
@@ -1514,8 +1544,8 @@ function updateTrajDisplay(currTime) {
 
     var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))];
 
-    var w = 500
-    var h = 250
+    var w = 800
+    var h = 300
     var padding = 25
     var padding = {top: 15, bottom: 25, left: 30, right: 50}
 
@@ -1728,16 +1758,6 @@ function displayDiagram(json) {
     var container = document.getElementById("diagram-container");
     var options = {width: '400px',height: '250px'};
     var network = new vis.Network(container, json, options);
-}
-
-
-function getRxnInfo() {
-    var rxnInfo;
-
-
-    return rxnInfo;
-
-
 }
 
 

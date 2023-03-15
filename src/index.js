@@ -28,7 +28,114 @@ var simRunning = false;
 // });
 
 
+// Tutorial on help button click
+$("#help-button").click(function() {
+    introJs().setOptions({
+        steps: [{
+          element: document.querySelector('.header'),
+          title: 'Welcome',
+          intro: 'Welcome to BioSSA! This is a platform for simulating chemical reaction networks in biology using the Stochastic Simulation, or Gillespie, Algorithm'
+        },
+        {
+          element: document.querySelector('.dropdown-btn'),
+          intro: 'For a quick intro to the Stochastic Simulation Algorithm and its uses in biology, check out these short articles'
+        },
+        {
+          title: 'Step 1: Define Species',
+          element: document.querySelector('#speciespanel'),
+          intro: 'First, create names and initial concentrations for each type of molecule in your model. Click "Confirm Species" when you\'re ready to move on.'
+        },
+        {
+          title: 'Step 2: Define Reactions',
+          element: document.querySelector('#rxnpanel'),
+          intro: 'Next, define all possible reactions. If a molecule catalyzes a reaction but is not consumed, include it as a reactant and a product. Click "Confirm Reactions" when you\'re ready to move on.'
+        },
+        {
+            title: 'Step 3: Reaction Parameters',
+            element: document.querySelector('#const-inputs'),
+            intro: 'Each reaction needs a constant value describing its rate. A higher rate will mean the reaction is more likely to occur. You may also specify a total simulation time here (note, the number of reactions that occurs in this time will depend on the constants)'
+        },
+        {
+            title: 'Step 4 (Optional): Ensemble Analysis',
+            element: document.querySelector('#ensemble-inputs'),
+            intro: 'By default, BioSSA will simulate one trajectory of your system. Check the box labeled "Multiple trajectories" to instead simulate several parallel instances of your model. The plots will then report average values across all trajectories.'
+        },
+        {
+            title: 'Step 5: Load Parameters',
+            element: document.querySelector('#params-load'),
+            intro: 'Click Load to finalize all parameters - you should see a visual network model of your system show up in the top left.'
+        },
+        {
+            title: 'Step 6: Run!',
+            element: document.querySelector('.control-buttons-container'),
+            intro: 'You can the run the simulation one step at a time and observe the results on the right side of the screen, or continuously to observe full trajectories below.'
+        },
+        {
+            title: 'Results: Initial Conditions',
+            element: document.querySelector('#icDisplay'),
+            intro: 'Here, the initial conditions you set in Step 1 are used to compute initial propensities and start the simulation.'
+        },
+        {
+            title: 'Results: Propensity Calculation',
+            element: document.querySelector('#propensity-display'),
+            intro: 'Formal propensities are based on the Law of Mass Action. Actual propensities are computed based on the concentration of each species in state vector X'
+        },
+        {
+            title: 'Results: Waiting Time (Uniform Sample)',
+            element: document.querySelector('#waiting-container'),
+            intro: 'The waiting time until the next reaction starts from a random sample from a uniform distribution...'
+        },
+        {
+            title: 'Results: Waiting Time',
+            element: document.querySelector('#waiting-exp-container'),
+            intro: '...which is transformed into a sample from an exponential distribution with parameter a, where a is the sum of actual propensities.'
+        },
+        {
+            title: 'Results: Current Time',
+            element: document.querySelector('#time-summary-container'),
+            intro: 'The current simulation time is then incremented by the waiting time. Next, we will determine which reaction occurs at this time.'
+        },
+        {
+            title: 'Results: Previous State',
+            element: document.querySelector('#prevStateDisplay'),
+            intro: 'The previous system state (i.e., concentrations of each species) is presented here for context.'
+        },
+        {
+            title: 'Results: Stoichiometry Matrix',
+            element: document.querySelector('#stoichDisplay'),
+            intro: 'The stoichiometry matrix shows the net effects of each reaction on the system. Each column represents one reaction, and each row represents the change in concentration of that species when the reaction occurs.'
+        },
+        {
+            title: 'Results: Next Reaction',
+            element: document.querySelector('#rxn-select-container'),
+            intro: 'We select a reaction based on a second random uniform sample on the interval [0,a] where a is the sum of actual propensities. Wherever the random sample falls, determines the reaction to occur. In this way, a reaction with a high rate or a high abundance of reactants will be more likely.'
+        },
+        {
+            title: 'Results: Current State',
+            element: document.querySelector('#curr-state-container'),
+            intro: 'The column for the selected reaction is added to the previous state to generate the new system state.'
+        },
+        {
+            title: 'Results: System Trajectories',
+            element: document.querySelector('#traj-container'),
+            intro: 'This line plot shows the evolution of the system over time. Click on any species in the legend to hide/show it.'
+        },
+        {
+            title: 'Results: Ensemble Distributions',
+            element: document.querySelector('#ensemble-container'),
+            intro: 'For ensemble simulations, this heatmap shows the distribution of states along any two species. Use the dropdowns to select which species is plotted on which axis.'
+        },
+        {
+            title: 'Explore!',
+            intro: 'Feel free to modify the existing systems or create your own and explore!'
+        },
+        ]
+      }).start();
+});
 
+
+
+// Set up sidebar dropdowns
 for (i = 0; i < dropdown.length; i++) {
   dropdown[i].addEventListener("click", function() {
     this.classList.toggle("active");
@@ -1722,22 +1829,34 @@ function getGraphJson(speciesList, stoichMatrix) {
                 //out += '{ "from": "' + speciesList[parseInt(reactants[r])+1] + '",\n "to": "' + speciesList[parseInt(products[p])+1] + '"},'
                 var rID = speciesList.findIndex(function(x) { return x == reactants[rc]; });
                 var pID = speciesList.findIndex(function(x) { return x == products[p]; });
+
+                // first, check if the edge already exists
+                var edgeExists = false;
+                for(var e in edges) {
+                    if(edges[e].from == rID & edges[e].to == pID & edges[e].title == edgeLabel) {
+                        edgeExists = true;
+                    }
+                }
                 
-                edges.push({
-                    from: rID,
-                    to: pID,
-                    title: edgeLabel,
-                    width: w,
-                    arrows: {
-                        to: {
-                          enabled: true,
-                          type: "arrow",
+                if(!edgeExists) {
+                    edges.push({
+                        from: rID,
+                        to: pID,
+                        title: edgeLabel,
+                        width: w,
+                        arrows: {
+                            to: {
+                              enabled: true,
+                              type: "arrow",
+                            },
+                          },
+                        font: {
+                            align: "top",
                         },
-                      },
-                    font: {
-                        align: "top",
-                    },
-                });
+                    });
+
+                }
+                
             }
         }
 

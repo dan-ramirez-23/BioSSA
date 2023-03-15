@@ -16,6 +16,7 @@ body {
   padding: 0 16px;
   font-size: 32px;
   font-weight: 900;
+  justify-content: space-between;
 }
 
 .footer {
@@ -195,3 +196,7 @@ mjx-container {
   padding-top:40px;
 }
 
+#help-button {
+  height: 60px;
+  width: 60px;
+}

@@ -27,11 +27,20 @@
   <script src="https://d3js.org/d3.v4.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.13.0/d3-legend.js"></script>
   <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/6.0.0/intro.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/6.0.0/introjs.min.css">
+  <script src="https://kit.fontawesome.com/ca64760b1d.js" crossorigin="anonymous"></script>
   <script defer src="src/index.js" charset="utf-8"></script>
 </head>
 <body>
   <div class="header">
-    BioSSA
+    <div>
+      BioSSA
+    </div>
+    <div>
+      <button id="help-button"><i class="fa-solid fa-circle-info fa-xl"></i></button>
+    </div>
+    
   </div>
   <div class="body">
     <div class="sidebar">
@@ -59,7 +68,7 @@
           <div id="diagram-container"></div>
 
         </div>
-        <div class="colpanel">
+        <div class="colpanel" id="speciespanel">
           <h3>Species</h3>
           <table class="speciestable">
             <tr>
@@ -87,7 +96,7 @@
           <button id="add-species">Add Species</button>
           <button id="confirm-species">Confirm Species</button>
         </div>
-        <div class="colpanel">
+        <div class="colpanel" id="rxnpanel">
           <h3>Reactions</h3>
           <table class="rxntable">
             <tr>
@@ -226,7 +235,7 @@
                 <input type="number" name="k_4" class="param-input-field" value = "0.1">
               </div>
             </div>
-            <div class="param-input-container">
+            <div class="param-input-container" id="ensemble-inputs">
               <h4>Ensemble Analysis</h4>
               <div class="param-input">
                 <label for="ensemble">Multiple trajectories</label>

@@ -175,8 +175,14 @@ h5 {
   max-width: 60px;
 }
 
+
+
 mjx-container {
-  margin: 0px;
+  display: inline-block;
+}
+mjx-assistive-mml {
+  right: 0px;
+  bottom: 0px;
 }
 
 #waiting-container {
@@ -196,7 +202,66 @@ mjx-container {
   padding-top:40px;
 }
 
-#help-button {
+
+
+.tutorial-button {
   height: 60px;
   width: 60px;
+}
+
+
+
+
+.y-axis {
+  writing-mode: tb-rl;
+  transform: rotate(-180deg);
+}
+.x-axis {
+  margin-top:10px;
+  margin-bottom:10px;
+}
+
+#y-axis-sel {
+  transform: translateY(30px) rotate(90deg);
+  
+}
+
+.ensemble-plot-container {
+  display: flex;
+  flex-direction: row;
+  max-width: 400px;
+  margin: auto
+}
+
+.ensemble-subplot-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.ensemble-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#speciespanel {
+  overflow-y: scroll;
+  max-height: 250px;
+  width: 300px;
+}
+
+#rxnpanel {
+  overflow-y: scroll;
+  max-height: 250px;
+}
+
+.disabled {
+  filter: grayscale(70%);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+#diagram-container {
+  border-radius: 25px;
+  border: 2px solid #D3D3D3;
 }

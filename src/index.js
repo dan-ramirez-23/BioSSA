@@ -21,6 +21,7 @@ var currTime = [0];
 var numTrajectories = 1;
 var simTime;
 var simRunning = false;
+var curr_step = 0;
 
 //$.ajax({
 //   url: "https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js",
@@ -28,17 +29,38 @@ var simRunning = false;
 // });
 
 
+// Define a color palette for labeling reactions & propensities - here, I start with a max of 50
+// generated based on https://stackoverflow.com/a/61183611
+var rxnColors = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
+             "#E5BA7E", "#141023", "#DFF138", "#4C0F51", "#ED6230", 
+             "#78A312", "#125931", "#9D5C4F", "#50D26F", "#12EDFA", 
+             "#210881", "#966C22", "#B294FC", "#082EFC", "#EB3EAC", 
+             "#431E1F", "#9FBB16", "#41DD82", "#87C6D2", "#CA27F3", 
+             "#DCF959", "#1B8A31", "#0CE73F", "#C5C8B9", "#4301CC", 
+             "#48D437", "#CE264D", "#B1F426", "#0162B5", "#73458F", 
+             "#9E4AC5", "#25BD6A", "#1E697D", "#8217A4", "#19999E", 
+             "#659681", "#6B5C57", "#31B6DB", "#B9CD57", "#3672C0", 
+             "#BD42BA", "#5AA5F4", "#FCAC39", "#EC5A55", "#B5855D"];
+
+var speciesColors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00',
+                     '#66E0E3', '#7D4EED', '#A69CE2', '#2FABCB', '#9B79C5', 
+                     '#1DABA9', '#2C58A1', '#3E79C7', '#6CB725', '#763164', 
+                     '#3F32F7', '#A12507', '#64637E', '#A7BD40', '#DE1D75', 
+                     '#6B804E', '#CB7815', '#717694', '#A6F909', '#171193', 
+                     '#CD6AEF', '#202427', '#760F3A', '#BE16C3', '#5200D1', 
+                     '#7DFC5E', '#48CC90', '#89FEBD', '#94B015', '#30C90C', 
+                     '#06707E', '#CF1537', '#DAF3AE', '#BDFE4F', '#8FE7C7', 
+                     '#9E80B2', '#CDF0F6', '#D0BD80', '#E5626B', '#AE1A92',
+                     '#1DF663', '#3C0E65', '#CEBB7B', '#2FC2FB', '#BD41A6'];
+    
+
 // Tutorial on help button click
 $("#help-button").click(function() {
     introJs().setOptions({
         steps: [{
           element: document.querySelector('.header'),
           title: 'Welcome',
-          intro: 'Welcome to BioSSA! This is a platform for simulating chemical reaction networks in biology using the Stochastic Simulation, or Gillespie, Algorithm'
-        },
-        {
-          element: document.querySelector('.dropdown-btn'),
-          intro: 'For a quick intro to the Stochastic Simulation Algorithm and its uses in biology, check out these short articles'
+          intro: 'Welcome to BioSSA! This is a platform for simulating chemical reaction networks in biology using the Stochastic Simulation, or Gillespie, Algorithm. Follow this tutorial for a general overview, or click the magnifying glass in the top right for more information about this specific model.'
         },
         {
           title: 'Step 1: Define Species',
@@ -53,12 +75,12 @@ $("#help-button").click(function() {
         {
             title: 'Step 3: Reaction Parameters',
             element: document.querySelector('#const-inputs'),
-            intro: 'Each reaction needs a constant value describing its rate. A higher rate will mean the reaction is more likely to occur. You may also specify a total simulation time here (note, the number of reactions that occurs in this time will depend on the constants)'
+            intro: 'Each reaction needs a constant value describing its rate. A higher rate will mean the reaction is more likely to occur. You may also specify a total simulation time here.'
         },
         {
             title: 'Step 4 (Optional): Ensemble Analysis',
             element: document.querySelector('#ensemble-inputs'),
-            intro: 'By default, BioSSA will simulate one trajectory of your system. Check the box labeled "Multiple trajectories" to instead simulate several parallel instances of your model. The plots will then report average values across all trajectories.'
+            intro: 'By default, BioSSA will simulate one trajectory of your system. Increase the value of "Number of trajectories" to instead simulate several parallel instances of your model. The plots will then report average values across all trajectories.'
         },
         {
             title: 'Step 5: Load Parameters',
@@ -73,17 +95,17 @@ $("#help-button").click(function() {
         {
             title: 'Results: Initial Conditions',
             element: document.querySelector('#icDisplay'),
-            intro: 'Here, the initial conditions you set in Step 1 are used to compute initial propensities and start the simulation.'
+            intro: 'Here, the initial conditions you set in Step 1 are used to compute initial propensities, or reaction likelihoods, and start the simulation. The system at any point can be described by a state vector X of this shape.'
         },
         {
             title: 'Results: Propensity Calculation',
             element: document.querySelector('#propensity-display'),
-            intro: 'Formal propensities are based on the Law of Mass Action. Actual propensities are computed based on the concentration of each species in state vector X'
+            intro: 'Actual propensities are computed at each step using the Law of Mass Action, based on the concentration of each species in the system.'
         },
         {
             title: 'Results: Waiting Time (Uniform Sample)',
             element: document.querySelector('#waiting-container'),
-            intro: 'The waiting time until the next reaction starts from a random sample from a uniform distribution...'
+            intro: 'The calculation of waiting time until the next reaction starts with a random sample from a uniform distribution...'
         },
         {
             title: 'Results: Waiting Time',
@@ -135,6 +157,20 @@ $("#help-button").click(function() {
 
 
 
+// selectively lock progress to ensure correct process flow
+// step 1: any adjustments made to species -> lock reaction and parameters
+// step 2: any adjustments made to reactions -> lock parameters
+lockProgress = function(step) {
+    if(step == 1) {
+        $("#rxnpanel").addClass("disabled");
+        $("#params-container").addClass("disabled");
+    } else if(step == 2) {
+        $("#params-container").addClass("disabled");
+
+    }
+}
+
+
 // Set up sidebar dropdowns
 for (i = 0; i < dropdown.length; i++) {
   dropdown[i].addEventListener("click", function() {
@@ -164,6 +200,8 @@ $("#add-species").click(function () {
             $(this).append(tds);
         }
     });
+    // lock out progress to ensure re-confirmation
+    lockProgress(1);
 });
 
 
@@ -171,6 +209,10 @@ $("#confirm-species").click(function() {
     //update species list
     updateSpecies();
     updateIC();
+
+    // enable next section (reaction table)
+    $("#rxnpanel").removeClass("disabled");
+
 });
 
 
@@ -202,9 +244,28 @@ function updateSpecies() {
         });
     })
 
+
+    // update ensemble display dropdowns
+    $("select.ensemble-selector").each(function () {
+        // get selected value, then empty the dropdown to repopulate it
+        var selectedVal = $(this).find(":selected").val();
+        var newOption;
+        $(this).empty();
+        // repopulate dropdown and set back to original selected value
+        speciesList.forEach(species => {
+            if (species == selectedVal) {
+                newOption = '<option value="'+species+'" selected>'+species+'</option>';
+            } else {
+                newOption = '<option value="'+species+'">'+species+'</option>';
+            }
+            
+            $(this).append(newOption);
+        });
+    })
+
 }
 
-// update initial conditions. later, when parameters are load
+// update initial conditions
 function updateIC() {
     icList = [];
     speciesList.forEach(species => {
@@ -215,8 +276,6 @@ function updateIC() {
     });
     for(let i = 0; i < numTrajectories; i++) {
         currentConcList[i] = [...icList];
-        console.log("currentConc updated for "+i)
-        console.log(currentConcList)
     }
 
     
@@ -225,6 +284,7 @@ function updateIC() {
 // delete a row of the species table to remove a species
 $(".speciestable").on('click', '.rm-species', function () {
     $(this).closest('tr').remove();
+    lockProgress(1);
 });
 
 
@@ -233,6 +293,7 @@ $(".rxntable").on('click', '.add-reactant', function () {
     var newDropdown = '<td>+</td><td><select class="reactant-select"></select></td>';
     $(this).parent().last().before(newDropdown);
     updateSpecies();
+    lockProgress(2);
 });
 
 
@@ -241,6 +302,7 @@ $(".rxntable").on('click', '.add-product', function () {
     var newDropdown = '<td>+</td><td><select class="product-select"></select></td>';
     $(this).parent().last().before(newDropdown);
     updateSpecies();
+    lockProgress(2);
 });
 
 
@@ -261,19 +323,21 @@ $("#add-rxn").click(function() {
     newRow +='<td class="rxnnum" id="rxnnum'+rxnNum+'">'+rxnNum+'. </td>'; // rxn number
     newRow += '<td><select class="reactant-select"></select></td>'; // first reactant selector
     newRow +='<td><button class="add-reactant">+</button></td>'; // add reactant button 
-    newRow +='<td>$$\\xrightarrow{\\text{k_'+rxnNum+'}}$$</td>'; // arrow
+    newRow +='<td>$$\\xrightarrow{\\color{'+rxnColors[rxnNum-1]+'}{\\text{k_'+rxnNum+'}}}$$</td>'; // arrow
     newRow +='<td><select class="product-select"></select></td>'; // product selector
     newRow +='<td><button class="add-product">+</button></td>'; // add product button
     newRow += '</tr>';
     $(".rxntable tbody").append(newRow);
     updateSpecies();
     MathJax.typeset();
+    lockProgress(2);
 });
 
 
 
 $(".rxntable").on('click', '.rxndelete', function () {
     $(this).closest('tr').remove();
+    lockProgress(2);
 });
 
 
@@ -299,7 +363,7 @@ $("#confirm-rxn").click(function () {
         }
 
         var input = '<div class="param-input">'; // create input div
-        input += '<label for="'+k+'">'+k+':</label>'; // add label
+        input += '<label for="'+k+'" style="color: '+rxnColors[rxn-1]+'">'+k+':</label>'; // add label
         input += '<input type="number" name="'+k+'" class="param-input-field" value = "'+prev_val+'">'; // add input
         input += ''; //close div
 
@@ -316,11 +380,15 @@ $("#confirm-rxn").click(function () {
     $("#stoichDisplay").append(newDisplay);
 
     // Update system diagram plot
-    displayDiagram(getGraphJson(speciesList, stoichMatrix))
+    //displayDiagram(getGraphJson(speciesList, stoichMatrix))
 
 
     // load MathJax again for it to process the update
     MathJax.typeset();
+
+    // enable next step (parameters)
+    $("#params-container").removeClass("disabled");
+    
 });
 
 
@@ -366,7 +434,9 @@ $("#params-load").click(function () {
     // record max sim time, # trajectories
     simTime = $('input[name="time"]').val();
     numTrajectories = $('input[name="nmodels"]').val();
-    paramVar = parseFloat($('input[name="variance"]').val());
+    paramVar = parseFloat($('input[name="variance"]').val()) / 100;
+    curr_step = 0;
+    paramScalars = getParamScalars(numTrajectories, paramVar);
 
     // update species just in case
     updateSpecies();
@@ -384,7 +454,7 @@ $("#params-load").click(function () {
     rxnInfo = getReactionInfo();
     updateFormalPropList(rxnInfo); 
     for(let i = 0; i < numTrajectories; i++) {
-        updatePropList(i, rxnInfo);
+        updatePropList(i, rxnInfo, paramScalars);
         currTime[i] = 0;
     }
     // display prop matrix for first trajectory
@@ -398,39 +468,55 @@ $("#params-load").click(function () {
     updateTrajectoryData(currTime);
 
     // update trajectory display legend
-    updateTrajLegend(speciesList)
+    updateTrajLegend(speciesList);
+
+    // update trajectory display
+    updateTrajDisplay(currTime);
+
     // update legend in reaction select display
     updateRxnLegend();
 
+    // update ensemble legend & display
+    if(numTrajectories > 1) {
+        $("#ensemble-container").removeClass("disabled");
+        drawEnsembleAxes();
+    } else {
+        $("#ensemble-container").addClass("disabled");
+    }
+
+    // Update system diagram plot
+    displayDiagram(getGraphJson(speciesList, stoichMatrix));
+
+
+    // Update ensemble display
+    changeEnsembleAxes();
+
+    
 
 });
 
 
+// Draw num values from a normal distribution centered at 1 with variance variance
+function getParamScalars(num, variance) {
+    output = Array(num).fill(0);
+    std = Math.sqrt(variance);
 
-    // // if time is 0, reset trajectory data
-    // if(currTime[0] == 0) {
-    //     // get start data
-    //     traj_time = [0,0,0]
-    //     traj_conc = [1,0,0]
-    //     traj_spec = [0,1,2]
-    //     traj_tID = [0,0,0]
+    for(let i = 0; i < num; i++) {
+        output[i] = gaussianRandom(1, variance);
+    }
 
-
-    //     // Combine data into objects
-    //     dataset_traj = []
-    //     for (var i = 0; i < traj_time.length; i++) {
-    //         dataset_traj.push({
-    //             traj_time: traj_time[i],
-    //             traj_conc: traj_conc[i],
-    //             traj_spec: traj_spec[i],
-    //             traj_tID: traj_tID[i]
-    //     });
-    //     }
-    // }
-
-
+    return output;
     
+}
 
+// Standard Normal variate using Box-Muller transform. From https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
+function gaussianRandom(mean=0, stdev=1) {
+    let u = 1 - Math.random(); // Converting [0,1) to (0,1]
+    let v = Math.random();
+    let z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    // Transform to the desired mean and standard deviation:
+    return z * stdev + mean;
+}
 
 
 function updateTrajectoryData(currTime) {
@@ -445,6 +531,7 @@ function updateTrajectoryData(currTime) {
             new_conc = [...currentConcList[i]];
             new_spec = [...Array(numSpecies).keys()];
             new_tID = Array(numSpecies).fill(i);
+            new_step = Array(numSpecies).fill(0);
             times[i] = []
 
 
@@ -455,7 +542,8 @@ function updateTrajectoryData(currTime) {
                     traj_time: new_time[j],
                     traj_conc: new_conc[j],
                     traj_spec: new_spec[j],
-                    traj_tID: new_tID[j]
+                    traj_tID: new_tID[j],
+                    traj_step: new_step[j]
             });
             }
         }
@@ -493,12 +581,12 @@ function displayIC(speciesList) {
 
 // get formal & actual propensity function for one reaction
 // todo: rewrite using rxnInfo instead?
-function getRxnPropensity(rxn, trajID) {
+function getRxnPropensity(rxn, trajID, scalar) {
 
 
-    var rxnNum = rxn.rxnNum;
+    //var rxnNum = rxn.rxnNum;
     var reactants = rxn.reactants;
-    var actualProp = rxn.rxnProp;
+    var actualProp = rxn.rxnProp * scalar;
 
     // compute propensity
     let uniqueReactants = [...new Set(reactants)]
@@ -643,13 +731,13 @@ function transpose(matrix) {
 
 
 
-function updatePropList(trajID, rxnInfo) {
+function updatePropList(trajID, rxnInfo, paramScalars) {
     propList[trajID] = [];
     var rxnNum;
 
     rxnInfo.forEach((rxn, i) => {
         
-        var rxnProps = getRxnPropensity(rxn, trajID);
+        var rxnProps = getRxnPropensity(rxn, trajID, paramScalars[trajID]);
         propList[trajID].push(rxnProps);
 
     });
@@ -674,7 +762,7 @@ function updateFormalPropList(rxnInfo) {
 // todo: fix this implementation of multimers
 function getRxnFormalPropensity(rxnNum, rxnInfo) {
 
-    console.log("getting formal prop for rxn "+ rxnNum);
+    //("getting formal prop for rxn "+ rxnNum);
     // allocate output vars
     var formalProp = 'k_'+rxnNum;
     
@@ -766,6 +854,15 @@ $("#sim-toggle").click(function() {
 })
 
 
+function timeCheck(simTime) {
+    meanTime = currTime.reduce((a, b) => a + b) / currTime.length;
+    if(meanTime >= simTime) {
+        clearInterval(run);
+    }
+}
+
+
+
 function addvector(a,b){
     return a.map((e,i) => parseFloat(e) + parseFloat(b[i]));
 }
@@ -777,11 +874,14 @@ function simStep() {
     // store previous state to track single trajectory
     var prevConcList = [...currentConcList[0]];
 
+    // update step counter
+    curr_step += 1;
+
     // loop over each reaction trajectory
     for(let x = 0; x < numTrajectories; x++) {
 
         //
-        updatePropList(x, rxnInfo);
+        updatePropList(x, rxnInfo, paramScalars);
         // obtain reaction time interval
         // generate a random number
         var rand = Math.random();
@@ -837,9 +937,16 @@ function simStep() {
     // update trajectory plot
     updateTrajDisplay(currTime);
 
+    // update ensemble display
+    if(numTrajectories > 1) {
+        changeEnsembleAxes();
+    }
     
+    // check simulation time and stop if needed
+    timeCheck(simTime);
 
 }
+
 
 
 function updatePrevStateDisplay(rxn, prevConcList) {
@@ -893,9 +1000,9 @@ function updateTimeDisplay(tau) {
     var lastTime = parseFloat($("#curr-time-readout").val());
     var newTime = lastTime + tau
 
-    $("#init-time-readout").val(lastTime);
-    $("#rxn-int-readout").val(tau);
-    $("#curr-time-readout").val(newTime);
+    $("#init-time-readout").val(Math.round(lastTime * 1000) / 1000);
+    $("#rxn-int-readout").val(Math.round(tau * 1000) / 1000);
+    $("#curr-time-readout").val(Math.round(newTime * 1000) / 1000);
 }
 
 
@@ -918,8 +1025,6 @@ function setupRxnLog() {
     var keys = [...Array(numRxns).keys()];
     h3 = h2.concat(keys.map((n) => 'k_'+(n+1)));
 
-    // save csv to data folder
-    // export_csv(h3, [], ",", "data/rxnlog");
 
 }
 
@@ -931,7 +1036,9 @@ const export_csv = (arrayHeader, arrayData, delimiter, fileName) => {
     let header = arrayHeader.join(delimiter) + '\n';
     let csv = header;
     arrayData.forEach( array => {
-        csv += array.join(delimiter)+"\n";
+        if(array.traj_step == curr_step) {
+            csv += Object.values(array).join(delimiter)+"\n";
+        }
     });
 
     let csvData = new Blob([csv], { type: 'text/csv' });  
@@ -1264,6 +1371,7 @@ function drawRxnSelectDisplay() {
     xScale_rxnSelect = d3.scaleBand()
                     .domain(["Propensity","Sample"])
                     .range([padding.left, w - padding.right * 2])
+                    .padding(.1)
 
     yScale_rxnSelect = d3.scaleLinear()
                 .domain([0, 1.2*d3.sum(y_rxnSelect)])
@@ -1323,7 +1431,7 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
     xScale_rxnSelect = d3.scaleBand()
                     .domain(["Propensity","Sample"])
                     .range([padding.left, w - padding.right * 2])
-                    .paddingInner(0.05);
+                    .padding(0.1);
 
     yScale_rxnSelect = d3.scaleLinear()
                 .domain([0, 1.2*d3.sum(propList[0])])
@@ -1332,12 +1440,12 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
 
 
 
-    console.log("rxnNum_rxnSelect:")
-    console.log(rxnNum_rxnSelect)
+    //console.log("rxnNum_rxnSelect:")
+    //console.log(rxnNum_rxnSelect)
     // color palette = one color per subgroup
     var color = d3.scaleOrdinal()
         .domain(rxnNum_rxnSelect)
-        .range(["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000"])
+        .range(rxnColors)
 
     //stack the data? --> stack per subgroup
     //var stackedData = d3.stack()
@@ -1378,10 +1486,6 @@ function displayRxnSelect(randRxn, sum, rxnNum) {
             .attr("height", function(d){ return yScale_rxnSelect(d[0]) - yScale_rxnSelect(d[1]); })
             .attr("width", xScale_rxnSelect.bandwidth())
             .attr("fill", function(d){ 
-                console.log("in barchart, key:")
-                console.log(key)
-                console.log("color for key:")
-                console.log(color(key))
                 return color(key); })
 
     });            
@@ -1405,16 +1509,16 @@ function updateRxnLegend() {
 
     var subgroups = dataset_rxnSelect.columns.slice(1)
 
-    console.log("subgroups:")
-    console.log(subgroups)
+    // console.log("subgroups:")
+    // console.log(subgroups)
 
-    console.log("formalProps:")
-    console.log(formalProps)
+    // console.log("formalProps:")
+    // console.log(formalProps)
 
     // Define the color scale
     const color = d3.scaleOrdinal()
         .domain(formalProps)
-        .range(["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000"])
+        .range(rxnColors)
 
     // Define legend
     var legend = d3.legendColor()
@@ -1453,6 +1557,7 @@ var traj_time = [0,0,0]
 var traj_conc = [1,0,0]
 var traj_spec = [0,1,2]
 var traj_tID = [0,0,0]
+var traj_step = [0,0,0]
 
 // with nothing
 // var traj_time = []
@@ -1469,20 +1574,11 @@ for (var i = 0; i < traj_time.length; i++) {
         traj_time: traj_time[i],
         traj_conc: traj_conc[i],
         traj_spec: traj_spec[i],
-        traj_tID: traj_tID[i]
+        traj_tID: traj_tID[i],
+        traj_step: traj_step[i]
   });
 }
 
-
-//dataset_traj= transpose([traj_time,traj_conc,traj_spec,traj_tID]);
-// dataset_traj[0] = traj_time;
-// dataset_traj[1] = traj_conc;
-// dataset_traj[2] = traj_spec;
-// dataset_traj[3] = traj_tID;
-console.log("trajectory dataset:");
-console.log(dataset_traj);
-//console.log("accessing by name: ")
-//console.log([...new Set(dataset_traj.map(d => d.traj_spec))]);
 
 
 function drawTrajectoryDisplay() {
@@ -1538,7 +1634,7 @@ function drawTrajectoryDisplay() {
 
     // Define the color scale
     const color = d3.scaleOrdinal()
-        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); // color scale
+        .range(speciesColors); // color scale
 
 
     // Define the line
@@ -1590,17 +1686,20 @@ function updateTrajLegend(speciesList) {
 
     var legendSpecies = [...speciesList]
     legendSpecies.shift();
-    console.log("legendSpecies:")
-    console.log(legendSpecies)
+    //console.log("legendSpecies:")
+    //console.log(legendSpecies)
 
 
     // Select plot
     var svg = d3.select('#traj-display');
 
+    // Remove old legend - this avoids overwriting issues with multiple sims in one pageload
+    svg.selectAll('.legend').remove();
+
     // Define the color scale
     const color = d3.scaleOrdinal()
         .domain(legendSpecies)
-        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
+        .range(speciesColors); 
 
 
     var legend = d3.legendColor()
@@ -1612,6 +1711,8 @@ function updateTrajLegend(speciesList) {
             //console.log("Clicked on color " + color(d));
             currentOpacity = d3.selectAll("g[stroke='"+color(d)+"']").style("opacity")
             test = svg.selectAll("g[stroke='"+color(d)+"']").transition().style("opacity", currentOpacity == 1 ? 0:1);
+            const legendCell = d3.select(this);
+            legendCell.classed('hidden', !legendCell.classed('hidden'));
         });;
 
     svg.append('g')
@@ -1624,6 +1725,7 @@ function updateTrajLegend(speciesList) {
 
 
 // Update trajectory display
+var doRollup = true;
 function updateTrajDisplay(currTime) {
 
 
@@ -1635,6 +1737,7 @@ function updateTrajDisplay(currTime) {
         new_conc = [...currentConcList[i]];
         new_spec = [...Array(numSpecies).keys()];
         new_tID = Array(numSpecies).fill(i);
+        new_step = Array(numSpecies).fill(curr_step);
 
         // Combine data into objects
         for (var j = 0; j < new_time.length; j++) {
@@ -1642,7 +1745,8 @@ function updateTrajDisplay(currTime) {
                 traj_time: new_time[j],
                 traj_conc: new_conc[j],
                 traj_spec: new_spec[j],
-                traj_tID: new_tID[j]
+                traj_tID: new_tID[j],
+                traj_step: new_step[j]
         });
         }
 
@@ -1665,7 +1769,7 @@ function updateTrajDisplay(currTime) {
     // Define the color scale
     const color = d3.scaleOrdinal()
         .domain(speciesIDs)
-        .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999']); 
+        .range(speciesColors); 
 
     // Update axes
     xScale_traj = d3.scaleLinear()
@@ -1685,17 +1789,35 @@ function updateTrajDisplay(currTime) {
         .call(yAxis_traj)
 
 
-    // define a mapping for lines
-    // Define the line
-    var valueLine = d3.line()
-        .x(function(d) { return xScale_traj(d.traj_time); })
-        .y(function(d) { return yScale_traj(+d.traj_conc); })
+
+    if(numTrajectories > 1) {
+        // define a mapping for lines
+        // Define the line
+        var valueLine = d3.line()
+            .x(function(d) { return xScale_traj(d.value.time); })
+            .y(function(d) { return yScale_traj(+d.value.avg); })
+
+        var nestedData_test = d3.nest()
+                .key(function(d) {
+                    return d.traj_spec
+                })
+                .key(function(d) {
+                    return d.traj_step
+                })
+                .rollup(function(leaves) {
+                    var avg = d3.mean(leaves, function(d){
+                        return d.traj_conc
+                    })
+                    var time = d3.mean(leaves, function(d) {
+                        return d.traj_time
+                    })
+                    return {avg:avg, time:time};
+                })
+                .entries(dataset_traj);
 
 
-   
-
-    // Nest the data by species
-    var nestedData = d3.nest()
+        // Nest the data by species
+        var nestedData = d3.nest()
         .key(function(d){
             return d.traj_spec;
         })
@@ -1703,33 +1825,129 @@ function updateTrajDisplay(currTime) {
             return d.traj_tID;
         })
         .entries(dataset_traj);
-        
 
 
-    // Update data
-    // Select all of the grouped elements and update the data
-    var selectGroups = svg.selectAll("g.specGroup")
-        .data(nestedData)
-        
-    selectGroups
-        .enter()
-        .append("g")
-        .attr("stroke", function(d) { return color(d.key)})
-        .attr("class", function(d) {return "specGroup"})
+        // Update axes
+        // first, we need to find where the x-axis should end, i.e. the average time of the latest timestep
+        findMeanTime = function(dataset) {
+            var lastStep = d3.max(dataset_traj, function(d) { return d.traj_step});
+            var recentAvg = d3.mean(dataset_traj, function(d) {if(d.traj_step == lastStep) return d.traj_time; else return null});
+            return Math.round(recentAvg * 1.1);
+        }
+        var xMax = findMeanTime(dataset_traj);
 
 
-    // Select all the lines and transition to new positions
-    lines = selectGroups.selectAll(".traj_new").data(function(d){
-            return (d.values)
-            }).attr("d", function(d) { return valueLine(d.values)})
 
-    //lines.exit().remove()
-    lines.enter()
-            .append("path")
-            .attr("fill","none")
-            .attr("class","traj_new")
-            .attr("d", function(d) { return valueLine(d.values)})
+
+        xScale_traj = d3.scaleLinear()
+            .domain([d3.min(dataset_traj, function(d) { return d.traj_time }), xMax])
+            .range([padding.left, w - padding.right * 2])
+        var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
+        svg.selectAll(".x.axis")
+            .transition()  
+            .call(xAxis_traj)
+
+        yScale_traj = d3.scaleLinear()
+            .domain([d3.min(dataset_traj, function(d) { return d.traj_conc }), d3.max(dataset_traj, function(d) { return d.traj_conc })])
+            .range([h - padding.bottom, padding.top])
+        var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
+        svg.selectAll(".y.axis")
             .transition()
+            .call(yAxis_traj)
+
+        
+        // Update data
+        // Select all of the grouped elements and update the data
+        var selectGroups = svg.selectAll("g.specGroup")
+            .data(nestedData)
+            
+        selectGroups
+            .enter()
+            .append("g")
+            .attr("stroke", function(d) { return color(d.key)})
+            .attr("class", function(d) {return "specGroup"})
+            
+
+        // Select all the lines and transition to new positions
+        lines = svg.selectAll(".traj").data(nestedData_test).attr("d", function(d) { return valueLine(d.values)})
+
+        //lines.exit().remove()
+        lines.enter()
+                .append("path")
+                .attr("fill","none")
+                .attr("class","traj")
+                .attr("stroke", function(d) { return color(d.key)})
+                .attr("d", function(d) { return valueLine(d.values)})
+                .transition()
+
+                
+
+    } else {
+
+        // update axes
+        xScale_traj = d3.scaleLinear()
+            .domain([d3.min(dataset_traj, function(d) { return d.traj_time }), d3.max(dataset_traj, function(d) { return d.traj_time })])
+            .range([padding.left, w - padding.right * 2])
+        var xAxis_traj = d3.axisBottom().scale(xScale_traj).ticks(9)
+        svg.selectAll(".x.axis")
+            .transition()  
+            .call(xAxis_traj)
+
+        yScale_traj = d3.scaleLinear()
+            .domain([d3.min(dataset_traj, function(d) { return d.traj_conc }), d3.max(dataset_traj, function(d) { return d.traj_conc })])
+            .range([h - padding.bottom, padding.top])
+        var yAxis_traj = d3.axisLeft().scale(yScale_traj).ticks(9)
+        svg.selectAll(".y.axis")
+            .transition()
+            .call(yAxis_traj)
+
+        // define a mapping for lines
+        // Define the line
+        var valueLine = d3.line()
+        .x(function(d) { return xScale_traj(d.traj_time); })
+        .y(function(d) { return yScale_traj(+d.traj_conc); })
+
+
+
+
+        // Nest the data by species
+        var nestedData = d3.nest()
+            .key(function(d){
+                return d.traj_spec;
+            })
+            .key(function(d){
+                return d.traj_tID;
+            })
+            .entries(dataset_traj);
+            
+
+        // Update data
+        // Select all of the grouped elements and update the data
+        var selectGroups = svg.selectAll("g.specGroup")
+            .data(nestedData)
+            
+        selectGroups
+            .enter()
+            .append("g")
+            .attr("stroke", function(d) { return color(d.key)})
+            .attr("class", function(d) {return "specGroup"})
+
+
+        // Select all the lines and transition to new positions
+        lines = selectGroups.selectAll(".traj_new").data(function(d){
+                return (d.values)
+                }).attr("d", function(d) { return valueLine(d.values)})
+
+        //lines.exit().remove()
+        lines.enter()
+                .append("path")
+                .attr("fill","none")
+                .attr("class","traj_new")
+                .attr("d", function(d) { return valueLine(d.values)})
+                .transition()
+
+    }
+    
     
     
     // update legend - frustratingly, the plot overwrites it if you dont
@@ -1739,13 +1957,21 @@ function updateTrajDisplay(currTime) {
 }
 
 
+// on confirmation of the axes, filter data for ensemble plotting
+$(".ensemble-confirm-container").on('click', '#confirm-ensemble-axes', function () {
+    changeEnsembleAxes();
+
+
+
+});
+
+
 
 
 function drawEnsembleDisplay() {
     var w = 300
     var h = 300
     var padding = {top: 15, bottom: 25, left: 30, right: 50}
-    var speciesIDs = [...new Set(dataset_traj.map(d => d.traj_spec))]; 
 
 
     var svg = d3.select('svg#ensemble-display')
@@ -1755,42 +1981,182 @@ function drawEnsembleDisplay() {
             .attr('width', '100%')
             .attr('height', '100%')
             .attr('fill', 'lightgrey')
+}
 
 
-    // Nest the data by species?
-    // var nestedData = d3.nest()
-    //     .key(function(d){
-    //         return d.traj_spec;
-    //     })
-    //     .key(function(d){
-    //         return d.traj_tID;
-    //     })
-    //     .entries(dataset_traj);
+// Combine data into objects
+var ensemble_data = [];
+var xExtent_ens, xScale_ens, xValue_ens, xMap_ens, xAxis_ens,
+    yExtent_ens, yScale_ens, yValue_ens, yMap_ens, yAxis_ens;
+
+
+function drawEnsembleAxes() {
+    var w = 300
+    var h = 300
+    var padding = {top: 15, bottom: 25, left: 30, right: 50}
+
+    var svg = d3.select('svg#ensemble-display')
+
+    // reset data
+    ensemble_data = [];
+    // Identify which species is on each axis
+    var xAxisSpec = $("#x-axis-sel").find(":selected").val();
+    var yAxisSpec = $("#y-axis-sel").find(":selected").val();
+    var xSpecID, ySpecID;
 
 
 
-    // Build X scales and axis:
-    var x = d3.scaleBand()
-        .range([ 0, w ])
-        .domain(myGroups)
-        .padding(0.05);
+
+    speciesList.forEach((species, s) => {
+        if (species == xAxisSpec) {
+            xSpecID = s;
+        } else if(species == yAxisSpec) {
+            ySpecID = s;
+        }
+    });
+
+    // select x & y values
+    for(var i = 0; i < currentConcList.length; i++) {
+        ensemble_data.push({
+            traj_id: i,
+            x_conc: currentConcList[i][xSpecID-1],
+            y_conc: currentConcList[i][ySpecID-1],
+        })
+    }
+
+
+
+    // create x axis and scale
+    xExtent_ens = d3.extent(ensemble_data, function(d) { return (d.x_conc);}); //given
+    xScale_ens = d3.scaleLinear().domain(xExtent_ens).range([padding.left, w - padding.right]); // value -> display   //given 
+    xValue_ens = function(d) { return ((d.x_conc));} // data -> value
+    xMap_ens = function(d) { return xScale_ens(d.x_conc);} // data -> display
+    xAxis_ens = d3.axisBottom().scale(xScale_ens).ticks(9); //given
+
+    // create y axis and scale
+    yExtent_ens = d3.extent(ensemble_data, function(d) {return (d.y_conc);});
+    yValue_ens = function(d) { return d.y_conc;} // data -> value
+    yScale_ens = d3.scaleLinear().domain(yExtent_ens).range([h - padding.bottom, padding.top]); // value -> display
+    yMap_ens = function(d) { return yScale_ens(yValue_ens(d.y_conc));}; // data -> display
+    yAxis_ens = d3.axisLeft().scale(yScale_ens).ticks(9);
+
+    // draw axes
+    // x-axis
     svg.append("g")
-        .style("font-size", 15)
-        .attr("transform", "translate(0," + h + ")")
-        .call(d3.axisBottom(x).tickSize(0))
-        .select(".domain").remove()
+        .attr("class", "x axis")
+        .attr('transform', 'translate(0,' + (h - padding.bottom) + ')')
+        .call(xAxis_ens);
 
-    // Build Y scales and axis:
-    var y = d3.scaleBand()
-        .range([ h, 0 ])
-        .domain(myVars)
-        .padding(0.05);
+    // y-axis
     svg.append("g")
-        .style("font-size", 15)
-        .call(d3.axisLeft(y).tickSize(0))
-        .select(".domain").remove()
+        .attr("class", "y axis")
+        .attr('transform', 'translate(' + padding.left + ',0)')
+        .call(yAxis_ens);
+    
+    // draw dots
+    svg.selectAll(".dot")
+        .data(ensemble_data, function(d) {return d.traj_id})
+        .enter().append("circle")
+        .attr("class", "dot")
+        .attr("r", 3.5)
+        .attr("cx", xMap_ens)
+        .attr("cy", yMap_ens);
 
 }
+
+
+function changeEnsembleAxes() {
+    var w = 300
+    var h = 300
+    var padding = {top: 15, bottom: 25, left: 30, right: 50}
+
+    var svg = d3.select('svg#ensemble-display')
+
+    // reset data
+    ensemble_data = [];
+    // Identify which species is on each axis
+    var xAxisSpec = $("#x-axis-sel").find(":selected").val();
+    var yAxisSpec = $("#y-axis-sel").find(":selected").val();
+    var xSpecID, ySpecID;
+
+    // we need species indices to get concentrations
+    speciesList.forEach((species, s) => {
+        if (species == xAxisSpec) {
+            xSpecID = s;
+        } else if(species == yAxisSpec) {
+            ySpecID = s;
+        }
+    });
+
+    // select x & y values
+    for(var i = 0; i < currentConcList.length; i++) {
+        ensemble_data.push({
+            traj_id: i,
+            x_conc: currentConcList[i][xSpecID-1],
+            y_conc: currentConcList[i][ySpecID-1],
+        })
+    }
+
+
+    yScale_ens // change the yScale
+        .domain([
+            d3.min([0,d3.min(ensemble_data,function (d) { return +d.y_conc })]),
+            d3.max([0,d3.max(ensemble_data,function (d) { return +d.y_conc })])
+        ]);
+    yAxis_ens.scale(yScale_ens); // change the yScale
+    yMap_ens = function(d) { return yScale_ens(yValue_ens(d.y_conc));}; // data -> display
+    svg.select('.y') // redraw the yAxis
+        .transition().duration(50)
+        .call(yAxis_ens)
+    //d3.select('#yAxisLabel') // change the yAxisLabel
+    //    .text(value)    
+  
+
+    xScale_ens // change the xScale
+        .domain([
+            d3.min([0,d3.min(ensemble_data,function (d) { return +d.x_conc })]), 
+            d3.max([0,d3.max(ensemble_data,function (d) { return +d.x_conc })])
+        ])
+
+    xAxis_ens.scale(xScale_ens) // change the xScale 
+    xMap_ens = function(d) { return xScale_ens(d.x_conc);} // data -> display
+
+    svg.select('.x') // redraw the xAxis
+      .transition().duration(50)
+      .call(xAxis_ens)
+    // d3.select('#xAxisLabel') // change the xAxisLabel
+    //   .transition().duration(50)
+    //   .text(value)
+
+
+    svg.selectAll('.dot') // move the circles
+        .data(ensemble_data, function(d) {return d.traj_id})
+        //.merge()
+        //.enter().append("circle")
+        .attr("class", "dot")
+        .attr("r", 3.5)
+        //.attr("cx", xMap_ens)
+        .attr("cx",function (d) {  return xScale_ens(xValue_ens(d)); })
+        //.attr("cy", yMap_ens)
+        .attr("cy",function (d) {  return yScale_ens(yValue_ens(d)); })
+        .transition().duration(50);
+        //.delay(50)
+        //.delay(function (d,i) { return i*100})
+        //.attr('cx',function (d) {  return xScale_ens(+d.x_conc); })
+        //.attr('cy',function (d) { return yScale_ens(+d.y_conc) })
+
+
+
+
+
+}
+
+
+
+
+
+
+
 
 
 
@@ -1844,6 +2210,7 @@ function getGraphJson(speciesList, stoichMatrix) {
                         to: pID,
                         title: edgeLabel,
                         width: w,
+                        color: rxnColors[r],
                         arrows: {
                             to: {
                               enabled: true,
@@ -1852,7 +2219,8 @@ function getGraphJson(speciesList, stoichMatrix) {
                           },
                         font: {
                             align: "top",
-                        },
+                        }
+                        
                     });
 
                 }
@@ -1878,6 +2246,14 @@ function displayDiagram(json) {
     var options = {width: '400px',height: '250px'};
     var network = new vis.Network(container, json, options);
 }
+
+
+$("#traj-download-btn").click(function() {
+    var header = ["time", "conc", "species", "trajectory","step"]
+    export_csv(header, dataset_traj, ",", "BioSSA_results.csv"); 
+});
+
+
 
 
 

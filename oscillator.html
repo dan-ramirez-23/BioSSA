@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BioSSA</title>
+  <link rel="stylesheet" href="main.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
+  <script type="text/javascript">
+    window.MathJax = {
+      loader: {load: ['[tex]/html']},
+      tex: {packages: {'[+]': ['html']}},
+      startup: {
+        ready() {
+          var SVGmath = MathJax._.output.svg.Wrappers.math.SVGmath;
+          SVGmath.styles['mjx-container[jax="SVG"][display="true"]'].margin = '0';
+          MathJax.startup.defaultReady();
+        }
+      }
+      
+    };
+  </script>
+  <script type="text/javascript" async
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js?config=TeX-MML-AM_CHTML"></script>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.13.0/d3-legend.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/6.0.0/intro.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/6.0.0/introjs.min.css">
+  <script src="https://kit.fontawesome.com/ca64760b1d.js" crossorigin="anonymous"></script>
+  <script defer src="src/index.js" charset="utf-8"></script>
+</head>
+<body>
+  <div class="header">
+    <div>
+      BioSSA
+    </div>
+    <div>
+      <button class="tutorial-button" id="help-button"><i class="fa-solid fa-circle-info fa-xl"></i></button>
+      <button class="tutorial-button" id="help-button-birthdecay"><i class="fa-solid fa-magnifying-glass-chart fa-xl"></i></button>
+    </div>
+    
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="birthdecay.html">Birth-Decay Process</a></li>
+        <li><a href="autoregulation.html">Autoregulation</a></li>
+        <li><a href="oscillator.html">Oscillator</a></li>
+      </ul>
+    </div>
+    <div class="content">
+      <div class="rowpanel">
+        <div class="colpanel">
+          <h3>System Diagram</h3>
+          <div id="diagram-container"></div>
+
+        </div>
+        <div class="colpanel" id="speciespanel">
+          <h3>Species</h3>
+          <table class="speciestable">
+            <tr>
+              <th>Name</th>
+              <th>Initial Condition</th>
+              <th></th>
+            </tr>
+            <tr>
+              <td><input type="text" class="species" value="Da"></td>
+              <td><input type="number" class="species_ic" value="1"></td>
+              <td><button class="rm-species">Delete</button></td>
+            </tr>
+            <tr>
+              <td><input type="text" class="species" value="Da_prime"></td>
+              <td><input type="number" class="species_ic" value="0"></td>
+              <td><button class="rm-species">Delete</button></td>
+            </tr>
+            <tr>
+              <td><input type="text" class="species" value="Ma"></td>
+              <td><input type="number" class="species_ic" value="0"></td>
+              <td><button class="rm-species">Delete</button></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="species" value="Dr"></td>
+                <td><input type="number" class="species_ic" value="1"></td>
+                <td><button class="rm-species">Delete</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="species" value="Dr_prime"></td>
+                <td><input type="number" class="species_ic" value="0"></td>
+                <td><button class="rm-species">Delete</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="species" value="Mr"></td>
+                <td><input type="number" class="species_ic" value="0"></td>
+                <td><button class="rm-species">Delete</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="species" value="C"></td>
+                <td><input type="number" class="species_ic" value="0"></td>
+                <td><button class="rm-species">Delete</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="species" value="A"></td>
+                <td><input type="number" class="species_ic" value="0"></td>
+                <td><button class="rm-species">Delete</button></td>
+              </tr>
+              <tr>
+                <td><input type="text" class="species" value="R"></td>
+                <td><input type="number" class="species_ic" value="0"></td>
+                <td><button class="rm-species">Delete</button></td>
+              </tr>
+          </table>        
+          <button id="add-species">Add Species</button>
+          <button id="confirm-species">Confirm Species</button>
+        </div>
+        <div class="colpanel disabled" id="rxnpanel">
+          <h3>Reactions</h3>
+          <table class="rxntable">
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum1">1.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A" selected>A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="reactant-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R" selected>R</option>
+                    </select>
+                  </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#E69F00}{\text{k_1}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C" selected>C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum2">2.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A" selected>A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#56B4E9}{\text{k_2}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None" selected>None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum3">3.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C" selected>C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#009E73}{\text{k_3}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R" selected>R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum4">4.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R" selected>R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#F0E442}{\text{k_4}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None" selected>None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum5">5.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A" selected>A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="reactant-select">
+                      <option value="None">None</option>
+                      <option value="Da" selected>Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#0072B2}{\text{k_5}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime" selected>Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum6">6.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime" selected>Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#E5BA7E}{\text{k_6}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A" selected>A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da" selected>Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+            </tr>
+            <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum7">7.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da" selected>Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#141023}{\text{k_7}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da" selected>Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma" selected>Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum8">8.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime" selected>Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#DFF138}{\text{k_8}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime" selected>Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma" selected>Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum9">9.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma" selected>Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#4C0F51}{\text{k_9}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None" selected>None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum10">10.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma" selected>Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#ED6230}{\text{k_10}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma" selected>Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A" selected>A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum11">11.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A" selected>A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr" selected>Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#78A312}{\text{k_11}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime" selected>Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum12">12.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime" selected>Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#125931}{\text{k_12}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr" selected>Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A" selected>A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum13">13.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr" selected>Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#9D5C4F}{\text{k_13}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr" selected>Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr" selected>Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum14">14.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime" selected>Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#50D26F}{\text{k_14}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime" selected>Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr" selected>Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R">R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum15">15.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr" selected>Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#12EDFA}{\text{k_15}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None" selected>None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr">Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+              <tr>
+                <td class="rxndelete"><button>Delete</button></td>
+                <td class="rxnnum" id="rxnnum16">16.</td>
+                <td>
+                  <select class="reactant-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr" selected>Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td><button class="add-reactant">+</button></td>
+                <td>$$\xrightarrow{\color{#210881}{\text{k_16}}}$$</td>
+                <td>
+                  <select class="product-select">
+                    <option value="None">None</option>
+                    <option value="Da">Da</option>
+                    <option value="Da_prime">Da_prime</option>
+                    <option value="Ma">Ma</option>
+                    <option value="Dr">Dr</option>
+                    <option value="Dr_prime">Dr_prime</option>
+                    <option value="Mr" selected>Mr</option>
+                    <option value="C">C</option>
+                    <option value="A">A</option>
+                    <option value="R">R</option>
+                  </select>
+                </td>
+                <td>+</td>
+                <td>
+                    <select class="product-select">
+                      <option value="None">None</option>
+                      <option value="Da">Da</option>
+                      <option value="Da_prime">Da_prime</option>
+                      <option value="Ma">Ma</option>
+                      <option value="Dr">Dr</option>
+                      <option value="Dr_prime">Dr_prime</option>
+                      <option value="Mr">Mr</option>
+                      <option value="C">C</option>
+                      <option value="A">A</option>
+                      <option value="R" selected>R</option>
+                    </select>
+                  </td>
+                <td><button class="add-product">+</button></td>
+              </tr>
+          </table>
+          <button id="add-rxn">Add Reaction</button>
+          <button id="confirm-rxn">Confirm Reactions</button>
+        </div>
+
+      </div>
+      <div class="rowpanel">
+        <div class="colpanel disabled" id="params-container">
+          <h3>Parameters</h3>
+          <div class="param-all-input-container">
+            <div class="param-input-container" id="const-inputs">
+              <h4>Constants</h4>
+              <div class="param-input">
+                <label for="time">Sim. time:</label>
+                <input type="number" name="time" class="param-input-field" value = "100">
+              </div>
+              <div class="param-input">
+                <label for="k_1" style="color: #E69F00">k_1:</label>
+                <input type="number" name="k_1" class="param-input-field" value = "2">
+              </div>
+              <div class="param-input">
+                <label for="k_2" style="color: #56B4E9">k_2:</label>
+                <input type="number" name="k_2" class="param-input-field" value = "1">
+              </div>
+              <div class="param-input">
+                <label for="k_3" style="color: #009E73">k_3:</label>
+                <input type="number" name="k_3" class="param-input-field" value = "1">
+              </div>
+              <div class="param-input">
+                <label for="k_4" style="color: #F0E442">k_4:</label>
+                <input type="number" name="k_4" class="param-input-field" value = "0.2">
+              </div>
+              <div class="param-input">
+                  <label for="k_5" style="color: #0072B2">k_5:</label>
+                  <input type="number" name="k_5" class="param-input-field" value = "1">
+              </div>
+              <div class="param-input">
+                  <label for="k_6" style="color: #E5BA7E">k_6:</label>
+                  <input type="number" name="k_6" class="param-input-field" value = "50">
+              </div>
+              <div class="param-input">
+                  <label for="k_7" style="color: #141023">k_7:</label>
+                  <input type="number" name="k_7" class="param-input-field" value = "50">
+              </div>
+              <div class="param-input">
+                  <label for="k_8" style="color: #DFF138">k_8:</label>
+                  <input type="number" name="k_8" class="param-input-field" value = "500">
+              </div>
+              <div class="param-input">
+                  <label for="k_9" style="color: #4C0F51">k_9:</label>
+                  <input type="number" name="k_9" class="param-input-field" value = "10">
+              </div>
+              <div class="param-input">
+                  <label for="k_10" style="color: #ED6230">k_10:</label>
+                  <input type="number" name="k_10" class="param-input-field" value = "50">
+              </div>
+              <div class="param-input">
+                  <label for="k_11" style="color: #78A312">k_11:</label>
+                  <input type="number" name="k_11" class="param-input-field" value = "1">
+              </div>
+              <div class="param-input">
+                  <label for="k_12" style="color: #125931">k_12:</label>
+                  <input type="number" name="k_12" class="param-input-field" value = "100">
+              </div>
+              <div class="param-input">
+                  <label for="k_13" style="color: #9D5C4F">k_13:</label>
+                  <input type="number" name="k_13" class="param-input-field" value = "0.01">
+              </div>
+              <div class="param-input">
+                  <label for="k_14" style="color: #50D26F">k_14:</label>
+                  <input type="number" name="k_14" class="param-input-field" value = "50">
+              </div>
+              <div class="param-input">
+                  <label for="k_15" style="color: #12EDFA">k_15:</label>
+                  <input type="number" name="k_15" class="param-input-field" value = "0.5">
+              </div>
+              <div class="param-input">
+                  <label for="k_16" style="color: #210881">k_16:</label>
+                  <input type="number" name="k_16" class="param-input-field" value = "5">
+              </div>
+          </div>
+            <div class="param-input-container" id="ensemble-inputs">
+              <h4>Ensemble Analysis</h4>
+              <div class="param-input">
+                <label for="nmodels">Number of trajectories:</label>
+                <input type="number" name="nmodels" class="param-input-field" value = "1">
+              </div>
+              <div class="param-input">
+                <label for="variance">Parameter variance (%):</label>
+                <input type="number" name="variance" class="param-input-field" value = "30">
+              </div>
+            </div>
+          </div>
+          <div class="control-buttons-container">
+            <button id="params-load">Load</button>
+            <button id="sim-step">Step</button>
+            <button id="sim-toggle">Go/Stop</button>
+
+          </div>
+        
+        </div>
+          
+        <div class="colpanel">
+          <h3>SSA Setup</h3>
+          <div class="ssa-setup-panel">
+            <div id="icDisplay">
+              <h5>Initial State X</h5>
+              $$
+              \begin{bmatrix}
+              \text{Gene_off} = 1 \\
+              \text{Gene_on} = 0 \\ 
+              \text{mRNA} = 0 
+              \end{bmatrix}$$
+            </div>
+            <div id="propensity-display">
+              <h5>Propensities</h5>
+              <table id="propensity-table">
+                <tr>
+                  <th>Formal</th>
+                  <th>Actual</th>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td></td>
+                </tr>
+                  
+
+              </table>
+            </div>
+            <div id="waiting-container">
+              <h5>Uniform Sample</h5>
+              <svg id="waiting-unif-display" width="500" height="400">
+
+              </svg>
+            </div>
+            <div id="waiting-exp-container">
+              <h5>Waiting Time</h5>
+              <svg id="waiting-exp-display" width="500" height="400">
+
+              </svg>
+
+            </div>
+            <div id="time-summary-container">
+              <label for="init-time">Initial Time</label>
+              <input type="text" name="init-time" value="0" id="init-time-readout" readonly><br>
+
+              <label for="rxn-int">Reaction Interval</label>
+              <input type="text" name="rxn-int" value="0" id="rxn-int-readout" readonly><br>
+
+              <label for="curr-time">Current Time</label>
+              <input type="text" name="curr-time" value="0" id="curr-time-readout" readonly><br>
+              
+
+            </div>
+            
+
+          </div>
+          <div class="ssa-setup-panel">
+            <div id="prevStateDisplay">
+              <h5>Previous State</h5>
+              $$
+              \begin{bmatrix}
+              1 \\
+              0 \\ 
+              0 
+              \end{bmatrix}$$
+            </div>
+            <div id="stoichDisplay">
+              <h5>Stoichiometry</h5>
+              $$
+              \begin{bmatrix}
+              -1 & 1 & 0 & 0 \\ 
+              1 & -1 & 0 & 0 \\ 
+              0 & 0 & 1 & -1
+              \end{bmatrix}$$
+            </div>
+            <div id="rxn-select-container">
+              <svg id="rxn-select-display" width="500" height="400">
+
+              </svg>
+
+            </div>
+            <div id="curr-state-container">
+              <div>
+                <h5>Current State</h5>
+              </div>
+              <div id="curr-state-display">
+              $$
+              \begin{bmatrix}
+              1 \\
+              0 \\ 
+              0 
+              \end{bmatrix} + \begin{bmatrix}
+              1 \\
+              0 \\ 
+              0 
+              \end{bmatrix} = \begin{bmatrix}
+              1 \\
+              0 \\ 
+              0 
+              \end{bmatrix}$$
+
+              </div>
+              
+              
+            </div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="rowpanel">
+        <div class="colpanel">
+          <h3>Trajectories</h3>
+
+          <div id="traj-container">
+            <svg id="traj-display" width="800" height="400">
+
+            </svg>
+
+          </div>
+        </div>
+        <div class="colpanel" id="ensemble-container">
+          
+          <h3>Ensemble Results</h3>
+
+          
+
+          <div class="ensemble-plot-container">
+            <div class="ensemble-select-container y-axis">
+              
+              Y-axis:
+              <select class="ensemble-selector" id="y-axis-sel">
+                <option value="None">None</option>
+                <option value="Gene_off">Gene_off</option>
+                <option value="Gene_on">Gene_on</option>
+                <option value="mRNA" selected>mRNA</option>
+              </select>
+  
+              
+  
+            </div>
+            <div class="ensemble-subplot-container">
+              <div id="ensemble-container">
+                <svg id="ensemble-display" width="400" height="400">
+    
+                </svg>
+              </div>
+
+
+              <div class="ensemble-select-container x-axis">
+                X-axis:
+                <select class="ensemble-selector" id="x-axis-sel">
+                  <option value="None">None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on" selected>Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+
+              </div>
+              <div class="ensemble-confirm-container">
+                <button id="confirm-ensemble-axes">Confirm Display</button>
+
+              </div>
+
+            </div>
+            
+          </div>
+          
+        </div>
+          
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+  </div>
+</body>
+</html>

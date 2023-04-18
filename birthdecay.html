@@ -38,7 +38,8 @@
       BioSSA
     </div>
     <div>
-      <button id="help-button"><i class="fa-solid fa-circle-info fa-xl"></i></button>
+      <button class="tutorial-button" id="help-button"><i class="fa-solid fa-circle-info fa-xl"></i></button>
+      <button class="tutorial-button" id="help-button-birthdecay"><i class="fa-solid fa-magnifying-glass-chart fa-xl"></i></button>
     </div>
     
   </div>
@@ -46,19 +47,9 @@
     <div class="sidebar">
       <ul>
         <li><a href="index.html">Home</a></li>
-        <button class="dropdown-btn">Primers
-          <i class="fa fa-caret-down"></i>
-        </button>
-        <div class="dropdown-container">
-          <ul>
-            <li><a href="ssa_intro.html">Intro to SSA</a></li>
-            <li><a href="#">Link 2</a></li>
-            <li><a href="#">Link 3</a></li>
-          </ul>
-        </div>
         <li><a href="birthdecay.html">Birth-Decay Process</a></li>
-        <li><a href="toggleswitch.html">Toggle Switch</a></li>
         <li><a href="autoregulation.html">Autoregulation</a></li>
+        <li><a href="oscillator.html">Oscillator</a></li>
       </ul>
     </div>
     <div class="content">
@@ -96,7 +87,7 @@
           <button id="add-species">Add Species</button>
           <button id="confirm-species">Confirm Species</button>
         </div>
-        <div class="colpanel" id="rxnpanel">
+        <div class="colpanel disabled" id="rxnpanel">
           <h3>Reactions</h3>
           <table class="rxntable">
             <tr>
@@ -112,7 +103,7 @@
               </td>
               <td><button class="add-reactant">+</button></td>
 
-              <td>$$\xrightarrow{\text{k_1}}$$</td>
+              <td>$$\xrightarrow{\color{#E69F00}{\text{k_1}}}$$</td>
               <td>
                 <select class="product-select">
                   <option value="None">None</option>
@@ -135,7 +126,7 @@
                 </select>
               </td>
               <td><button class="add-reactant">+</button></td>
-              <td>$$\xrightarrow{\text{k_2}}$$</td>
+              <td>$$\xrightarrow{\color{#56B4E9}{\text{k_2}}}$$</td>
               <td>
                 <select class="product-select">
                   <option value="None">None</option>
@@ -158,7 +149,7 @@
                 </select>
               </td>
               <td><button class="add-reactant">+</button></td>
-              <td>$$\xrightarrow{\text{k_3}}$$</td>
+              <td>$$\xrightarrow{\color{#009E73}{\text{k_3}}}$$</td>
               <td>
                 <select class="product-select">
                   <option value="None">None</option>
@@ -190,7 +181,7 @@
                 </select>
               </td>
               <td><button class="add-reactant">+</button></td>
-              <td>$$\xrightarrow{\text{k_4}}$$</td>
+              <td>$$\xrightarrow{\color{#F0E442}{\text{k_4}}}$$</td>
               <td>
                 <select class="product-select">
                   <option value="None" selected>None</option>
@@ -209,7 +200,7 @@
 
       </div>
       <div class="rowpanel">
-        <div class="colpanel">
+        <div class="colpanel disabled" id="params-container">
           <h3>Parameters</h3>
           <div class="param-all-input-container">
             <div class="param-input-container" id="const-inputs">
@@ -219,28 +210,24 @@
                 <input type="number" name="time" class="param-input-field" value = "100">
               </div>
               <div class="param-input">
-                <label for="k_1">k_1:</label>
+                <label for="k_1" style="color: #E69F00">k_1:</label>
                 <input type="number" name="k_1" class="param-input-field" value = "0.2">
               </div>
               <div class="param-input">
-                <label for="k_2">k_2:</label>
+                <label for="k_2" style="color: #56B4E9">k_2:</label>
                 <input type="number" name="k_2" class="param-input-field" value = "0.5">
               </div>
               <div class="param-input">
-                <label for="k_3">k_3:</label>
+                <label for="k_3" style="color: #009E73">k_3:</label>
                 <input type="number" name="k_3" class="param-input-field" value = "10">
               </div>
               <div class="param-input">
-                <label for="k_4">k_4:</label>
+                <label for="k_4" style="color: #F0E442">k_4:</label>
                 <input type="number" name="k_4" class="param-input-field" value = "0.1">
               </div>
             </div>
             <div class="param-input-container" id="ensemble-inputs">
               <h4>Ensemble Analysis</h4>
-              <div class="param-input">
-                <label for="ensemble">Multiple trajectories</label>
-                <input type="checkbox" name="ensemble" class="ensemble-checkbox">
-              </div>
               <div class="param-input">
                 <label for="nmodels">Number of trajectories:</label>
                 <input type="number" name="nmodels" class="param-input-field" value = "1">
@@ -379,15 +366,55 @@
             </svg>
 
           </div>
+          <button id="traj-download-btn">Download Results</button>
         </div>
-        <div class="colpanel">
+        <div class="colpanel" id="ensemble-container">
+          
           <h3>Ensemble Results</h3>
 
-          <div id="ensemble-container">
-            <svg id="ensemble-display" width="400" height="400">
+          
 
-            </svg>
+          <div class="ensemble-plot-container">
+            <div class="ensemble-select-container y-axis">
+              
+              Y-axis:
+              <select class="ensemble-selector" id="y-axis-sel">
+                <option value="None">None</option>
+                <option value="Gene_off">Gene_off</option>
+                <option value="Gene_on">Gene_on</option>
+                <option value="mRNA" selected>mRNA</option>
+              </select>
+  
+              
+  
+            </div>
+            <div class="ensemble-subplot-container">
+              <div id="ensemble-container">
+                <svg id="ensemble-display" width="400" height="400">
+    
+                </svg>
+              </div>
+
+
+              <div class="ensemble-select-container x-axis">
+                X-axis:
+                <select class="ensemble-selector" id="x-axis-sel">
+                  <option value="None">None</option>
+                  <option value="Gene_off">Gene_off</option>
+                  <option value="Gene_on" selected>Gene_on</option>
+                  <option value="mRNA">mRNA</option>
+                </select>
+
+              </div>
+              <div class="ensemble-confirm-container">
+                <button id="confirm-ensemble-axes">Confirm Display</button>
+
+              </div>
+
+            </div>
+            
           </div>
+          
         </div>
           
       </div>
